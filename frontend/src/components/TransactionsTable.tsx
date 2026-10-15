@@ -20,6 +20,7 @@ interface TransactionsTableProps {
   accounts: Account[];
   currency: Currency;
   fxRate: number;
+  selectedAccountId?: string | null;
 }
 
 type SourceFilter = 'ALL' | 'API_ONLY' | 'BANK_API' | 'PAYROLL_API' | 'PDF_STATEMENT';
@@ -32,15 +33,24 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
   accounts,
   currency,
   fxRate,
+  selectedAccountId,
 }) => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('API_ONLY');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
-  const [accountFilter, setAccountFilter] = useState<string>('ALL');
+  const [accountFilter, setAccountFilter] = useState<string>(selectedAccountId || 'ALL');
   const [flowFilter, setFlowFilter] = useState<FlowFilter>('ALL');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('ALL');
   const [sortBy, setSortBy] = useState<SortOption>('date_desc');
+
+  // Sync external selected account filter from VirtualCardWallet
+  React.useEffect(() => {
+    if (selectedAccountId) {
+      setAccountFilter(selectedAccountId);
+      setCurrentPage(1);
+    }
+  }, [selectedAccountId]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);

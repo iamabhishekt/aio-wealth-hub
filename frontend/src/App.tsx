@@ -10,6 +10,10 @@ import { NativeDeviceBar } from './components/NativeDeviceBar';
 import { AutomatedSyncCard } from './components/AutomatedSyncCard';
 import { TransactionsTable } from './components/TransactionsTable';
 import { FinancialIndependencePanel } from './components/FinancialIndependencePanel';
+import { VirtualCardWallet } from './components/VirtualCardWallet';
+import { QuickActionsBar } from './components/QuickActionsBar';
+import { AICopilotCard } from './components/AICopilotCard';
+import { CashflowAnalytics } from './components/CashflowAnalytics';
 import { nativeBridge } from './nativeBridge';
 import {
   LayoutDashboard,
@@ -43,6 +47,7 @@ export const App: React.FC = () => {
     | 'import'
   >('overview');
   const [showMobileMore, setShowMobileMore] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -387,8 +392,20 @@ export const App: React.FC = () => {
 
         {activeTab === 'overview' && (
           <div className="space-y-5 sm:space-y-6">
+            {/* 1. Automated Sync Banner */}
             <AutomatedSyncCard />
 
+            {/* 2. Quick Actions Bar (iBanko & Fintrack inspired) */}
+            <QuickActionsBar
+              currency={currency}
+              fxRate={DEFAULT_FX_RATE}
+              onNavigateTab={(tab) => {
+                setActiveTab(tab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+
+            {/* 3. Consolidated Net Worth Hero (HaraPro & Copilot inspired) */}
             <NetWorthHero
               forecast={forecast}
               currency={currency}
@@ -398,10 +415,44 @@ export const App: React.FC = () => {
               isRefreshing={isRefreshing}
             />
 
-            {/* OpenAccountant Financial Independence (FIRE) & Debt Payoff Intelligence */}
+            {/* 4. Virtual Card & Credit Instrument Wallet (iBanko & Apple Wallet inspired) */}
+            <VirtualCardWallet
+              accounts={accounts}
+              currency={currency}
+              fxRate={DEFAULT_FX_RATE}
+              selectedAccountId={selectedCardId}
+              onSelectAccount={(accId) => {
+                setSelectedCardId(accId);
+                setActiveTab('transactions');
+                nativeBridge.scheduleLocalNotification(
+                  'Filtered Transaction Stream',
+                  'Ledger filtered to selected physical card.'
+                );
+              }}
+            />
+
+            {/* 5. AI Wealth Copilot Proactive Insights (Synetica & AI Finance inspired) */}
+            <AICopilotCard
+              forecast={forecast}
+              currency={currency}
+              fxRate={DEFAULT_FX_RATE}
+              onNavigateTab={(tab) => {
+                setActiveTab(tab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+
+            {/* 6. Cashflow Inflow vs Outflow & Category Analytics (Fintrack & Twisty inspired) */}
+            <CashflowAnalytics
+              forecast={forecast}
+              currency={currency}
+              fxRate={DEFAULT_FX_RATE}
+            />
+
+            {/* 7. OpenAccountant Financial Independence (FIRE) & Debt Payoff Intelligence */}
             <FinancialIndependencePanel currency={currency} fxRate={DEFAULT_FX_RATE} />
 
-            {/* Forecaster & Splitwise Bento Grid (1 col on mobile, 2 col on tablet/desktop) */}
+            {/* 8. Forecaster & Splitwise Bento Grid (1 col on mobile, 2 col on tablet/desktop) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
               <ForecasterChart forecast={forecast} currency={currency} fxRate={DEFAULT_FX_RATE} />
               <SplitwisePanel
@@ -411,6 +462,7 @@ export const App: React.FC = () => {
               />
             </div>
 
+            {/* 9. Accounts & Debt Ledger */}
             <AccountsGrid
               accounts={accounts}
               currency={currency}
@@ -418,13 +470,16 @@ export const App: React.FC = () => {
               onAddAccount={handleAddAccount}
             />
 
+            {/* 10. Verified Transaction Stream */}
             <TransactionsTable
               transactions={transactions}
               accounts={accounts}
               currency={currency}
               fxRate={DEFAULT_FX_RATE}
+              selectedAccountId={selectedCardId}
             />
 
+            {/* 11. Subscription Creep Radar (Wallos) */}
             <SubscriptionRadar
               subscriptions={subscriptions}
               currency={currency}
@@ -453,6 +508,7 @@ export const App: React.FC = () => {
             accounts={accounts}
             currency={currency}
             fxRate={DEFAULT_FX_RATE}
+            selectedAccountId={selectedCardId}
           />
         )}
 
