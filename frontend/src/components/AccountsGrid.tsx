@@ -232,16 +232,16 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Skill Category Filter Pills */}
-          <div className="bg-vault-900 border border-vault-800 p-1 rounded-2xl text-xs flex flex-wrap gap-1">
+        <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
+          {/* Skill Category Filter Pills (Smooth swipeable on mobile/fold) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar flex-1 lg:flex-initial">
             <button
               onClick={() => {
                 nativeBridge.triggerHaptic('light');
                 setSkillCategory('all');
               }}
-              className={`px-3 py-1.5 rounded-xl transition-all font-semibold ${
-                skillCategory === 'all' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-xl transition-all font-semibold shrink-0 ${
+                skillCategory === 'all' ? 'bg-vault-800 text-white font-bold border border-vault-700' : 'bg-vault-900/60 text-slate-400 hover:text-white border border-vault-800'
               }`}
             >
               All ({accounts.length})
@@ -251,10 +251,10 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
                 nativeBridge.triggerHaptic('light');
                 setSkillCategory('assets');
               }}
-              className={`px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 shrink-0 ${
                 skillCategory === 'assets'
                   ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30'
-                  : 'text-slate-400 hover:text-white'
+                  : 'bg-vault-900/60 text-slate-400 hover:text-white border border-vault-800'
               }`}
             >
               <PiggyBank className="w-3.5 h-3.5 text-emerald-400" />
@@ -265,10 +265,10 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
                 nativeBridge.triggerHaptic('light');
                 setSkillCategory('debts');
               }}
-              className={`px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 shrink-0 ${
                 skillCategory === 'debts'
                   ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30'
-                  : 'text-slate-400 hover:text-white'
+                  : 'bg-vault-900/60 text-slate-400 hover:text-white border border-vault-800'
               }`}
             >
               <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
@@ -279,10 +279,10 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
                 nativeBridge.triggerHaptic('light');
                 setSkillCategory('remittances');
               }}
-              className={`px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 shrink-0 ${
                 skillCategory === 'remittances'
                   ? 'bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30'
-                  : 'text-slate-400 hover:text-white'
+                  : 'bg-vault-900/60 text-slate-400 hover:text-white border border-vault-800'
               }`}
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-blue-400" />
@@ -293,32 +293,45 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
                 nativeBridge.triggerHaptic('light');
                 setSkillCategory('india');
               }}
-              className={`px-3 py-1.5 rounded-xl transition-all font-semibold ${
+              className={`px-3 py-1.5 rounded-xl transition-all font-semibold shrink-0 ${
                 skillCategory === 'india'
-                  ? 'bg-vault-800 text-amber-300 font-bold'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-vault-800 text-amber-300 font-bold border border-amber-500/30'
+                  : 'bg-vault-900/60 text-slate-400 hover:text-white border border-vault-800'
               }`}
             >
               🇮🇳 India (HDFC & SBI)
+            </button>
+            <button
+              onClick={() => {
+                nativeBridge.triggerHaptic('light');
+                setSkillCategory('us');
+              }}
+              className={`px-3 py-1.5 rounded-xl transition-all font-semibold shrink-0 ${
+                skillCategory === 'us'
+                  ? 'bg-vault-800 text-cyan-300 font-bold border border-cyan-500/30'
+                  : 'bg-vault-900/60 text-slate-400 hover:text-white border border-vault-800'
+              }`}
+            >
+              🇺🇸 US Accounts
             </button>
           </div>
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-vault-cyan text-vault-950 font-bold text-xs rounded-xl hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-vault-cyan text-vault-950 font-bold text-xs rounded-xl hover:opacity-90 transition-opacity shrink-0"
           >
             <Plus className="w-4 h-4" />
-            Connect Account
+            <span className="hidden sm:inline">Connect Account</span>
           </button>
         </div>
       </div>
 
       {/* Remittance Pipeline Spotlight (Shown when remittances filter is active or in overview) */}
       {skillCategory === 'remittances' && (
-        <div className="bg-gradient-to-r from-blue-950/60 via-vault-900/80 to-purple-950/60 border border-blue-500/30 rounded-3xl p-6 backdrop-blur-xl shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-950/60 via-vault-900/80 to-purple-950/60 border border-blue-500/30 rounded-3xl p-5 sm:p-6 backdrop-blur-xl shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
                 <Globe className="w-5 h-5" />
               </div>
               <div>
@@ -328,7 +341,7 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
                 </p>
               </div>
             </div>
-            <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+            <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 self-start sm:self-auto">
               Live FX: 1 USD = {fxRate} INR
             </span>
           </div>
@@ -360,8 +373,8 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
         </div>
       )}
 
-      {/* Main Accounts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Main Accounts Grid (Responsive: 1 col on mobile, 2 cols on fold/tablet, 3 cols on desktop) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {filteredAccounts.map((acc) => {
           const debt = isDebt(acc.account_type);
           const skill = getSkillBadge(acc);

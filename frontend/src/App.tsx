@@ -22,6 +22,9 @@ import {
   Unlock,
   ReceiptText,
   Flame,
+  MoreHorizontal,
+  X,
+  ChevronRight,
 } from 'lucide-react';
 
 const DEFAULT_FX_RATE = 86.5;
@@ -30,10 +33,17 @@ export const App: React.FC = () => {
   const [isLocked, setIsLocked] = useState(true);
   const [currency, setCurrency] = useState<Currency>('USD');
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'independence' | 'accounts' | 'transactions' | 'subscriptions' | 'splitwise' | 'forecaster' | 'import'
+    | 'overview'
+    | 'independence'
+    | 'accounts'
+    | 'transactions'
+    | 'subscriptions'
+    | 'splitwise'
+    | 'forecaster'
+    | 'import'
   >('overview');
+  const [showMobileMore, setShowMobileMore] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -218,33 +228,44 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-vault-950 flex flex-col pb-20 sm:pb-8">
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-40 bg-vault-950/80 backdrop-blur-md border-b border-vault-800/80 px-4 py-3 sm:px-8">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-vault-900 border border-vault-700 flex items-center justify-center text-vault-cyan font-black">
+    <div className="min-h-screen bg-vault-950 flex flex-col pb-24 md:pb-8">
+      {/* Top Sticky Navbar (Desktop, Tablet & Mobile Header) */}
+      <header className="sticky top-0 z-40 bg-vault-950/85 backdrop-blur-md border-b border-vault-800/80 px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          {/* Brand Logo & Title */}
+          <div
+            className="flex items-center gap-2.5 cursor-pointer"
+            onClick={() => {
+              nativeBridge.triggerHaptic('light');
+              setActiveTab('overview');
+            }}
+          >
+            <div className="w-8 h-8 rounded-xl bg-vault-900 border border-vault-700 flex items-center justify-center text-vault-cyan font-black text-sm">
               ₿
             </div>
             <div>
-              <h1 className="text-sm font-extrabold text-white leading-none">AIO Wealth Hub</h1>
+              <h1 className="text-sm font-extrabold text-white leading-none tracking-tight">
+                AIO Wealth Hub
+              </h1>
               <span className="text-[10px] text-slate-400">US & India Consolidated Vault</span>
             </div>
           </div>
 
-          {/* Desktop Tab Switcher */}
-          <nav className="hidden md:flex items-center gap-1 bg-vault-900 p-1 rounded-xl border border-vault-800 text-xs">
+          {/* Desktop & Tablet Navigation Strip (Hidden on mobile phones / fold cover screen) */}
+          <nav className="hidden md:flex items-center gap-1 bg-vault-900 p-1 rounded-xl border border-vault-800 text-xs overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'overview' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
+                activeTab === 'overview'
+                  ? 'bg-vault-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Overview
             </button>
             <button
               onClick={() => setActiveTab('independence')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'independence'
                   ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
                   : 'text-slate-400 hover:text-white'
@@ -255,70 +276,117 @@ export const App: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('accounts')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'accounts' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
+                activeTab === 'accounts'
+                  ? 'bg-vault-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Accounts & Debt
             </button>
             <button
               onClick={() => setActiveTab('transactions')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'transactions' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
+                activeTab === 'transactions'
+                  ? 'bg-vault-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Transactions ({transactions.length})
             </button>
             <button
               onClick={() => setActiveTab('subscriptions')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'subscriptions' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
+                activeTab === 'subscriptions'
+                  ? 'bg-vault-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              Subscriptions
+              Subscriptions ({subscriptions.length})
             </button>
             <button
               onClick={() => setActiveTab('splitwise')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'splitwise' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
+                activeTab === 'splitwise'
+                  ? 'bg-vault-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Splitwise
             </button>
             <button
               onClick={() => setActiveTab('forecaster')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'forecaster' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
+                activeTab === 'forecaster'
+                  ? 'bg-vault-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               12M Forecast
             </button>
             <button
               onClick={() => setActiveTab('import')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'import' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
+                activeTab === 'import'
+                  ? 'bg-vault-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Import CSV
             </button>
           </nav>
 
-          <button
-            onClick={() => setIsLocked(true)}
-            className="p-2 rounded-xl bg-vault-900 border border-vault-800 text-slate-400 hover:text-white transition-colors"
-            title="Lock Vault"
-          >
-            <Lock className="w-4 h-4" />
-          </button>
+          {/* Right Action Cluster: Currency Switcher & Lock Vault */}
+          <div className="flex items-center gap-2">
+            <div className="bg-vault-900 p-0.5 rounded-xl border border-vault-800 flex items-center text-xs">
+              <button
+                onClick={() => {
+                  nativeBridge.triggerHaptic('light');
+                  setCurrency('USD');
+                }}
+                className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                  currency === 'USD'
+                    ? 'bg-vault-cyan text-vault-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                $
+              </button>
+              <button
+                onClick={() => {
+                  nativeBridge.triggerHaptic('light');
+                  setCurrency('INR');
+                }}
+                className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                  currency === 'INR'
+                    ? 'bg-vault-gold text-vault-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                ₹
+              </button>
+            </div>
+
+            <button
+              onClick={() => {
+                nativeBridge.triggerHaptic('medium');
+                setIsLocked(true);
+              }}
+              className="p-2 rounded-xl bg-vault-900 border border-vault-800 text-slate-400 hover:text-white transition-colors"
+              title="Lock Vault"
+            >
+              <Lock className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-8 py-6 flex-1 w-full space-y-6">
+      {/* Main Responsive Content Container (Responsive: max-w-7xl, auto margin, fluid padding) */}
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex-1 w-full space-y-5 sm:space-y-6">
         <NativeDeviceBar />
 
         {activeTab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-5 sm:space-y-6">
             <AutomatedSyncCard />
 
             <NetWorthHero
@@ -331,17 +399,11 @@ export const App: React.FC = () => {
             />
 
             {/* OpenAccountant Financial Independence (FIRE) & Debt Payoff Intelligence */}
-            <FinancialIndependencePanel
-              currency={currency}
-              fxRate={DEFAULT_FX_RATE}
-            />
+            <FinancialIndependencePanel currency={currency} fxRate={DEFAULT_FX_RATE} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ForecasterChart
-                forecast={forecast}
-                currency={currency}
-                fxRate={DEFAULT_FX_RATE}
-              />
+            {/* Forecaster & Splitwise Bento Grid (1 col on mobile, 2 col on tablet/desktop) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+              <ForecasterChart forecast={forecast} currency={currency} fxRate={DEFAULT_FX_RATE} />
               <SplitwisePanel
                 currency={currency}
                 fxRate={DEFAULT_FX_RATE}
@@ -373,10 +435,7 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'independence' && (
-          <FinancialIndependencePanel
-            currency={currency}
-            fxRate={DEFAULT_FX_RATE}
-          />
+          <FinancialIndependencePanel currency={currency} fxRate={DEFAULT_FX_RATE} />
         )}
 
         {activeTab === 'accounts' && (
@@ -415,126 +474,211 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'forecaster' && (
-          <ForecasterChart
-            forecast={forecast}
-            currency={currency}
-            fxRate={DEFAULT_FX_RATE}
-          />
+          <ForecasterChart forecast={forecast} currency={currency} fxRate={DEFAULT_FX_RATE} />
         )}
 
         {activeTab === 'import' && (
-          <StatementImporter
-            onImportTransactions={handleImportTransactions}
-          />
+          <StatementImporter onImportTransactions={handleImportTransactions} />
         )}
       </main>
 
-      {/* Mobile Bottom Navigation Bar (iOS / Android Native feel) */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-vault-950/95 backdrop-blur-lg border-t border-vault-800 px-2 py-2 flex items-center justify-around z-50">
+      {/* MOBILE / FOLD COVER BOTTOM NAVIGATION BAR (Thumb Ergonomics - Exactly 5 Touchpoints) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-vault-950/95 backdrop-blur-xl border-t border-vault-800/90 px-3 py-2 flex items-center justify-around z-50 pb-safe">
         <button
           onClick={() => {
             nativeBridge.triggerHaptic('light');
             setActiveTab('overview');
+            setShowMobileMore(false);
           }}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
+          className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-colors ${
             activeTab === 'overview' ? 'text-vault-cyan' : 'text-slate-400'
           }`}
         >
           <LayoutDashboard className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Vault</span>
+          <span className="text-[10px] font-semibold">Vault</span>
         </button>
 
         <button
           onClick={() => {
             nativeBridge.triggerHaptic('light');
             setActiveTab('independence');
+            setShowMobileMore(false);
           }}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
+          className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-colors ${
             activeTab === 'independence' ? 'text-amber-400' : 'text-slate-400'
           }`}
         >
           <Flame className="w-5 h-5" />
-          <span className="text-[10px] font-medium">FIRE</span>
+          <span className="text-[10px] font-semibold">FIRE</span>
         </button>
 
         <button
           onClick={() => {
             nativeBridge.triggerHaptic('light');
             setActiveTab('accounts');
+            setShowMobileMore(false);
           }}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
+          className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-colors ${
             activeTab === 'accounts' ? 'text-vault-cyan' : 'text-slate-400'
           }`}
         >
           <CreditCard className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Accounts</span>
+          <span className="text-[10px] font-semibold">Accounts</span>
         </button>
 
         <button
           onClick={() => {
             nativeBridge.triggerHaptic('light');
             setActiveTab('transactions');
+            setShowMobileMore(false);
           }}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
+          className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-colors ${
             activeTab === 'transactions' ? 'text-vault-cyan' : 'text-slate-400'
           }`}
         >
           <ReceiptText className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Txns</span>
+          <span className="text-[10px] font-semibold">Txns</span>
         </button>
 
         <button
           onClick={() => {
             nativeBridge.triggerHaptic('light');
-            setActiveTab('subscriptions');
+            setShowMobileMore(true);
           }}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
-            activeTab === 'subscriptions' ? 'text-vault-cyan' : 'text-slate-400'
+          className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-colors ${
+            ['subscriptions', 'splitwise', 'forecaster', 'import'].includes(activeTab) || showMobileMore
+              ? 'text-vault-cyan'
+              : 'text-slate-400'
           }`}
         >
-          <Repeat className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Subs</span>
-        </button>
-
-        <button
-          onClick={() => {
-            nativeBridge.triggerHaptic('light');
-            setActiveTab('splitwise');
-          }}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
-            activeTab === 'splitwise' ? 'text-vault-cyan' : 'text-slate-400'
-          }`}
-        >
-          <Users className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Splitwise</span>
-        </button>
-
-        <button
-          onClick={() => {
-            nativeBridge.triggerHaptic('light');
-            setActiveTab('forecaster');
-          }}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
-            activeTab === 'forecaster' ? 'text-vault-cyan' : 'text-slate-400'
-          }`}
-        >
-          <LineChart className="w-5 h-5" />
-          <span className="text-[10px] font-medium">12M Forecaster</span>
-        </button>
-
-        <button
-          onClick={() => {
-            nativeBridge.triggerHaptic('light');
-            setActiveTab('import');
-          }}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
-            activeTab === 'import' ? 'text-vault-cyan' : 'text-slate-400'
-          }`}
-        >
-          <FileSpreadsheet className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Import</span>
+          <MoreHorizontal className="w-5 h-5" />
+          <span className="text-[10px] font-semibold">More</span>
         </button>
       </nav>
+
+      {/* MOBILE "MORE" ACTION DRAWER / SHEET */}
+      {showMobileMore && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-vault-950 border border-vault-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-5 pb-safe">
+            <div className="flex items-center justify-between border-b border-vault-800 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white">Hub Features & Tools</h3>
+                <p className="text-xs text-slate-400">Additional personal finance intelligence</p>
+              </div>
+              <button
+                onClick={() => setShowMobileMore(false)}
+                className="p-2 rounded-xl bg-vault-900 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  nativeBridge.triggerHaptic('light');
+                  setActiveTab('subscriptions');
+                  setShowMobileMore(false);
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-vault-900/70 border border-vault-800 hover:border-vault-700 text-left transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                    <Repeat className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Subscriptions & SaaS</h4>
+                    <p className="text-[11px] text-slate-400">
+                      Wallos Engine · {subscriptions.length} recurring commitments
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
+              <button
+                onClick={() => {
+                  nativeBridge.triggerHaptic('light');
+                  setActiveTab('splitwise');
+                  setShowMobileMore(false);
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-vault-900/70 border border-vault-800 hover:border-vault-700 text-left transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Splitwise Reconciler</h4>
+                    <p className="text-[11px] text-slate-400">
+                      Household & group shared balance sync
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
+              <button
+                onClick={() => {
+                  nativeBridge.triggerHaptic('light');
+                  setActiveTab('forecaster');
+                  setShowMobileMore(false);
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-vault-900/70 border border-vault-800 hover:border-vault-700 text-left transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <LineChart className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">12-Month Net Worth Forecaster</h4>
+                    <p className="text-[11px] text-slate-400">
+                      Monte Carlo habit adjustment simulator
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
+              <button
+                onClick={() => {
+                  nativeBridge.triggerHaptic('light');
+                  setActiveTab('import');
+                  setShowMobileMore(false);
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-vault-900/70 border border-vault-800 hover:border-vault-700 text-left transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Import Statements & CSV</h4>
+                    <p className="text-[11px] text-slate-400">
+                      Offline parser for bank PDFs & exports
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="pt-2 border-t border-vault-800">
+              <button
+                onClick={() => {
+                  nativeBridge.triggerHaptic('medium');
+                  setIsLocked(true);
+                  setShowMobileMore(false);
+                }}
+                className="w-full py-3 bg-vault-900 hover:bg-vault-850 text-slate-300 font-semibold text-xs rounded-xl border border-vault-800 flex items-center justify-center gap-2"
+              >
+                <Lock className="w-4 h-4 text-rose-400" />
+                Lock Vault Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
