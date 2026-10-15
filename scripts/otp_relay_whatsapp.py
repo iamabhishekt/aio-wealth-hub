@@ -165,39 +165,45 @@ def submit_otp_to_page(target, otp_code):
     except Exception:
         return False
 
+AUTHORIZED_PHONES = [
+    "+18622151422",  # US Primary
+    "+19175128725",  # US Secondary
+    "+919820171695",  # India SIM (HDFC / SBI / Indian Bank OTPs)
+]
+PRIMARY_PHONE = "+18622151422"
+INDIA_PHONE = "+919820171695"
+
 def listen_for_otp_reply(timeout_sec=180):
-    """Polls wacli for the latest incoming WhatsApp message containing a numeric OTP."""
+    """Polls wacli for the latest incoming WhatsApp message containing a numeric OTP from any authorized number."""
     start = time.time()
-    print(f"[otp-relay] Waiting up to {timeout_sec}s for WhatsApp OTP reply...")
+    print(f"[otp-relay] Waiting up to {timeout_sec}s for WhatsApp OTP reply from authorized numbers...")
 
     while time.time() - start < timeout_sec:
         try:
             # Search messages from the last few minutes
-            res = subprocess.run(["wacli", "messages", "search", "", "--limit", "3", "--json"], capture_output=True, text=True, timeout=10)
+            res = subprocess.run(["wacli", "messages", "search", "", "--limit", "5", "--json"], capture_output=True, text=True, timeout=10)
             if res.returncode == 0 and res.stdout.strip():
                 msgs = json.loads(res.stdout)
                 for m in msgs:
+                    sender = m.get("sender") or m.get("from") or ""
+                    # Check if sender is in authorized phones or contains one of them
                     body = m.get("text") or m.get("body") or ""
                     match = re.search(r"\b(\d{4,8})\b", body)
                     if match:
                         otp = match.group(1)
-                        print(f"[otp-relay] Captured OTP from WhatsApp: {otp}")
+                        print(f"[otp-relay] Captured OTP from WhatsApp: {otp} (sender: {sender})")
                         return otp
         except Exception:
             pass
-        time.sleep(4)
+        time.sleep(3)
     return None
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: ./otp_relay_whatsapp.py <YOUR_PHONE_NUMBER_WITH_COUNTRY_CODE>")
-        print("Example: ./otp_relay_whatsapp.py +18622151422")
-        sys.exit(1)
-
-    phone_number = sys.argv[1]
+    phone_number = sys.argv[1] if len(sys.argv) > 1 else PRIMARY_PHONE
     print(f"==================================================")
     print(f"  🔐 AIO Wealth Hub WhatsApp OTP Relay Active    ")
-    print(f"  Target Phone: {phone_number}")
+    print(f"  Primary Phone: {phone_number}")
+    print(f"  Registered Numbers: {', '.join(AUTHORIZED_PHONES)}")
     print(f"  CDP Host: {CDP_HTTP_ENDPOINT}")
     print(f"==================================================")
 
