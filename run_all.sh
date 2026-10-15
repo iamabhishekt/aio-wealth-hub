@@ -20,12 +20,15 @@ fi
 echo "--> [1/4] Building Rust Backend (aio-wealth-server)..."
 cargo build --manifest-path backend/Cargo.toml
 
-# 3. Synchronize Live Data Feeds
+# 3. Synchronize Live Data Feeds & Connectors
 echo "--> [2/4] Ingesting Live SimpleFIN Institutions & Robinhood Holdings..."
 python3 scripts/sync_simplefin.py || true
 
 echo "--> Ingesting Wallos Subscriptions & Recurring Bills..."
 python3 scripts/wallos_tracker.py || true
+
+echo "--> Synchronizing HDFC Loan, Remitly, Crobo & Live FX Rates..."
+python3 scripts/sync_connectors.py || true
 
 echo "--> Running TypeSafe Jev LLM Transaction Categorization..."
 python3 scripts/classify_jev.py || true
