@@ -7,6 +7,7 @@ export type AccountType =
   | 'CreditCardApple'
   | 'CreditCardChase'
   | 'CreditCardCiti'
+  | 'CreditCardGeneric'
   | 'LoanAuto'
   | 'LoanStudent'
   | 'LoanPersonal'
@@ -14,12 +15,14 @@ export type AccountType =
   | 'InvestmentStock'
   | 'InvestmentMutualFund'
   | 'InvestmentCrypto'
+  | 'Investment401k'
   | 'IndianLICPolicy'
   | 'IndianPPF'
   | 'IndianEPF'
   | 'InsurancePolicy'
   | 'UtilityRecurring'
-  | 'SplitwiseNetBalance';
+  | 'SplitwiseNetBalance'
+  | 'TransferGateway';
 
 export interface Account {
   id: string;

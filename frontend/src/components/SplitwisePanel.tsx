@@ -52,16 +52,11 @@ export const SplitwisePanel: React.FC<Props> = ({ currency, fxRate, onSyncSucces
         onSyncSuccess(data.net_balance_usd);
         nativeBridge.triggerHaptic('success');
       } else {
-        // Fallback simulation if running without live token
-        setNetBalance(145.50);
-        setSyncStatus('Demo mode: $145.50 owed to you');
-        onSyncSuccess(145.50);
+        const errText = await res.text();
+        setSyncStatus(`Sync error: ${errText || res.statusText}`);
       }
-    } catch (e) {
-      // Local demo fallback
-      setNetBalance(145.50);
-      setSyncStatus('Demo mode: $145.50 owed to you');
-      onSyncSuccess(145.50);
+    } catch (e: any) {
+      setSyncStatus(`Connection failed: ${e.message || 'Check backend'}`);
     } finally {
       setLoading(false);
     }

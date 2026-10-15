@@ -43,6 +43,8 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
       case 'CreditCardAmex':
       case 'CreditCardApple':
       case 'CreditCardChase':
+      case 'CreditCardCiti':
+      case 'CreditCardGeneric':
         return <CreditCard className="w-4 h-4 text-amber-400" />;
       case 'LoanAuto':
         return <Car className="w-4 h-4 text-rose-400" />;
@@ -50,6 +52,11 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
       case 'LoanPersonal':
       case 'LoanMortgage':
         return <GraduationCap className="w-4 h-4 text-purple-400" />;
+      case 'InvestmentStock':
+      case 'InvestmentMutualFund':
+      case 'InvestmentCrypto':
+      case 'Investment401k':
+        return <TrendingUp className="w-4 h-4 text-vault-cyan" />;
       case 'IndianLICPolicy':
       case 'IndianPPF':
       case 'IndianEPF':
@@ -58,10 +65,6 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
         return <Shield className="w-4 h-4 text-blue-400" />;
       case 'UtilityRecurring':
         return <Zap className="w-4 h-4 text-amber-300" />;
-      case 'InvestmentStock':
-      case 'InvestmentMutualFund':
-      case 'InvestmentCrypto':
-        return <TrendingUp className="w-4 h-4 text-emerald-400" />;
       default:
         return <Landmark className="w-4 h-4 text-vault-cyan" />;
     }
