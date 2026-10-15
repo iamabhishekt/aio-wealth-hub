@@ -77,6 +77,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/email-accounts", get(list_email_accounts).post(upsert_email_account))
         .route("/api/email-accounts/:id", delete(delete_email_account))
         .route("/api/email-accounts/test", post(test_email_account))
+        .route("/api/openaccountant/report", get(openaccountant_report_handler))
         .layer(cors)
         .with_state(state);
 
@@ -418,4 +419,29 @@ async fn test_email_account(
         })),
     }
 }
+
+async fn openaccountant_report_handler() -> Result<Json<serde_json::Value>, StatusCode> {
+    let output = tokio::process::Command::new("python3")
+        .arg("scripts/open_accountant.py")
+        .arg("--json")
+        .output()
+        .await;
+
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+                Ok(Json(val))
+            } else {
+                eprintln!("[openaccountant] JSON parse error: {}", stdout);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+        Err(e) => {
+            eprintln!("[openaccountant] Execution error: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
 

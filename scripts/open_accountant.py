@@ -100,14 +100,105 @@ def run_emergency_fund_audit() -> Dict[str, Any]:
         "accounts": accounts
     }
 
+def run_financial_independence_analysis(debt_data: Dict[str, Any], ef_data: Dict[str, Any]) -> Dict[str, Any]:
+    # Monthly cashflow
+    monthly_income = 5243.42 # Verified Paychex direct deposit
+    monthly_debt_servicing = debt_data["total_min_monthly_usd"] # ~$2,495.68
+    monthly_living_expenses = 1200.0 # food, gas, daily life
+    total_monthly_burn = monthly_debt_servicing + monthly_living_expenses # ~$3,695.68
+
+    annual_expenses = total_monthly_burn * 12 # ~$44,348
+
+    # 4% Safe Withdrawal Rule (25x expenses)
+    fire_target_standard = annual_expenses * 25 # Standard FIRE
+    fire_target_lean = (annual_expenses * 0.75) * 25 # Lean FIRE
+    fire_target_fat = (annual_expenses * 1.5) * 25 # Fat FIRE
+
+    # Invested assets (Equities, cash, retirement)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT coalesce(sum(balance), 0) FROM accounts
+        WHERE account_type IN ('InvestmentRobinhood', 'InvestmentGeneric', 'InvestmentRetirement401k', 'CashChecking', 'CashSavings');
+    """)
+    row = cur.fetchone()
+    invested_assets = row[0] if row else 0.0
+    conn.close()
+
+    monthly_savings = max(0.0, monthly_income - total_monthly_burn)
+    savings_rate = (monthly_savings / monthly_income) * 100 if monthly_income > 0 else 0.0
+
+    # Compound interest / FI projection (approx 7% real annual return)
+    r = 0.07 / 12
+    current_portfolio = invested_assets
+    target = fire_target_standard
+    months_to_fi = 0
+    if monthly_savings > 0:
+        sim_val = current_portfolio
+        while sim_val < target and months_to_fi < 600: # 50 years max cap
+            sim_val = sim_val * (1 + r) + monthly_savings
+            months_to_fi += 1
+    else:
+        months_to_fi = 999
+
+    years_to_fi = round(months_to_fi / 12, 1)
+
+    return {
+        "monthly_net_income_usd": round(monthly_income, 2),
+        "total_monthly_burn_usd": round(total_monthly_burn, 2),
+        "annual_expenses_usd": round(annual_expenses, 2),
+        "monthly_savings_usd": round(monthly_savings, 2),
+        "savings_rate_percent": round(savings_rate, 1),
+        "fire_target_standard_usd": round(fire_target_standard, 2),
+        "fire_target_lean_usd": round(fire_target_lean, 2),
+        "fire_target_fat_usd": round(fire_target_fat, 2),
+        "current_invested_assets_usd": round(invested_assets, 2),
+        "fire_progress_percent": round((invested_assets / fire_target_standard) * 100, 2) if fire_target_standard > 0 else 0.0,
+        "years_to_fi": years_to_fi,
+        "rule_of_thumb": "4% Safe Withdrawal Rule (25x annual expenditure)"
+    }
+
+def get_complete_report() -> Dict[str, Any]:
+    debt = run_debt_payoff_analysis()
+    ef = run_emergency_fund_audit()
+    fi = run_financial_independence_analysis(debt, ef)
+    return {
+        "status": "success",
+        "financial_independence": fi,
+        "debt_payoff": debt,
+        "emergency_fund": ef
+    }
+
 def print_open_accountant_report():
+    import sys
+    import json
+
+    report = get_complete_report()
+
+    if "--json" in sys.argv:
+        print(json.dumps(report, indent=2))
+        return
+
+    debt = report["debt_payoff"]
+    ef = report["emergency_fund"]
+    fi = report["financial_independence"]
+
     print("=" * 75)
     print("      OPENACCOUNTANT INTELLIGENCE REPORT (openaccountant/skills)       ")
     print("=" * 75)
 
+    print("\n[SKILL: financial-goals & net-worth -> FINANCIAL INDEPENDENCE (FIRE)]")
+    print(f" • Monthly Verified Inflow: ${fi['monthly_net_income_usd']:,.2f} USD")
+    print(f" • Monthly Living & Debt Burn: ${fi['total_monthly_burn_usd']:,.2f} USD")
+    print(f" • Monthly Savings Rate: {fi['savings_rate_percent']}% (${fi['monthly_savings_usd']:,.2f}/mo)")
+    print(f" • Standard FIRE Target (25x Expenses): ${fi['fire_target_standard_usd']:,.2f} USD")
+    print(f" • Lean FIRE Target: ${fi['fire_target_lean_usd']:,.2f} USD | Fat FIRE: ${fi['fire_target_fat_usd']:,.2f} USD")
+    print(f" • Current Invested Base: ${fi['current_invested_assets_usd']:,.2f} ({fi['fire_progress_percent']}% of Standard FIRE)")
+    print(f" • Projected Years to Financial Independence: {fi['years_to_fi']} years (at 7% real compound growth)")
+
     # 1. Debt Payoff
-    debt = run_debt_payoff_analysis()
-    print("\n[SKILL: debt-payoff]")
+    print("\n" + "-" * 75)
+    print("[SKILL: debt-payoff -> CRITICAL MILESTONE FOR FI]")
     print(f" • Total Outstanding Debt: ${debt['total_debt_usd']:,.2f} USD")
     print(f" • Minimum Monthly Servicing: ${debt['total_min_monthly_usd']:,.2f}/mo")
     print(f" • Extra Accelerated Payoff Capacity: ${debt['extra_payoff_capacity_usd']:,.2f}/mo")
@@ -119,9 +210,8 @@ def print_open_accountant_report():
         print(f"    {i}. {item}")
 
     # 2. Emergency Fund
-    ef = run_emergency_fund_audit()
     print("\n" + "-" * 75)
-    print("[SKILL: emergency-fund]")
+    print("[SKILL: emergency-fund -> CAPITAL PRESERVATION]")
     print(f" • Total Liquid Cash: ${ef['total_liquid_cash_usd']:,.2f} USD")
     print(f" • Current Runway: {ef['runway_months']} Months ({ef['status']})")
     for a in ef["accounts"]:

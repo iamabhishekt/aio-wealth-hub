@@ -9,6 +9,7 @@ import { StatementImporter } from './components/StatementImporter';
 import { NativeDeviceBar } from './components/NativeDeviceBar';
 import { AutomatedSyncCard } from './components/AutomatedSyncCard';
 import { TransactionsTable } from './components/TransactionsTable';
+import { FinancialIndependencePanel } from './components/FinancialIndependencePanel';
 import { nativeBridge } from './nativeBridge';
 import {
   LayoutDashboard,
@@ -20,6 +21,7 @@ import {
   Lock,
   Unlock,
   ReceiptText,
+  Flame,
 } from 'lucide-react';
 
 const DEFAULT_FX_RATE = 86.5;
@@ -28,7 +30,7 @@ export const App: React.FC = () => {
   const [isLocked, setIsLocked] = useState(true);
   const [currency, setCurrency] = useState<Currency>('USD');
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'accounts' | 'transactions' | 'subscriptions' | 'splitwise' | 'forecaster' | 'import'
+    'overview' | 'independence' | 'accounts' | 'transactions' | 'subscriptions' | 'splitwise' | 'forecaster' | 'import'
   >('overview');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
@@ -241,6 +243,17 @@ export const App: React.FC = () => {
               Overview
             </button>
             <button
+              onClick={() => setActiveTab('independence')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === 'independence'
+                  ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-amber-400" />
+              <span>FIRE & Independence</span>
+            </button>
+            <button
               onClick={() => setActiveTab('accounts')}
               className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                 activeTab === 'accounts' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
@@ -317,6 +330,12 @@ export const App: React.FC = () => {
               isRefreshing={isRefreshing}
             />
 
+            {/* OpenAccountant Financial Independence (FIRE) & Debt Payoff Intelligence */}
+            <FinancialIndependencePanel
+              currency={currency}
+              fxRate={DEFAULT_FX_RATE}
+            />
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ForecasterChart
                 forecast={forecast}
@@ -350,6 +369,13 @@ export const App: React.FC = () => {
               onToggleStatus={handleToggleSub}
             />
           </div>
+        )}
+
+        {activeTab === 'independence' && (
+          <FinancialIndependencePanel
+            currency={currency}
+            fxRate={DEFAULT_FX_RATE}
+          />
         )}
 
         {activeTab === 'accounts' && (
@@ -414,6 +440,19 @@ export const App: React.FC = () => {
         >
           <LayoutDashboard className="w-5 h-5" />
           <span className="text-[10px] font-medium">Vault</span>
+        </button>
+
+        <button
+          onClick={() => {
+            nativeBridge.triggerHaptic('light');
+            setActiveTab('independence');
+          }}
+          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
+            activeTab === 'independence' ? 'text-amber-400' : 'text-slate-400'
+          }`}
+        >
+          <Flame className="w-5 h-5" />
+          <span className="text-[10px] font-medium">FIRE</span>
         </button>
 
         <button

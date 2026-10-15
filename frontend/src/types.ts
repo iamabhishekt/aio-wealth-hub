@@ -72,3 +72,42 @@ export interface Transaction {
   is_recurring: boolean;
   notes?: string;
 }
+
+export interface FinancialIndependenceMetrics {
+  monthly_net_income_usd: number;
+  total_monthly_burn_usd: number;
+  annual_expenses_usd: number;
+  monthly_savings_usd: number;
+  savings_rate_percent: number;
+  fire_target_standard_usd: number;
+  fire_target_lean_usd: number;
+  fire_target_fat_usd: number;
+  current_invested_assets_usd: number;
+  fire_progress_percent: number;
+  years_to_fi: number;
+  rule_of_thumb: string;
+}
+
+export interface DebtPayoffMetrics {
+  total_debt_usd: number;
+  total_min_monthly_usd: number;
+  extra_payoff_capacity_usd: number;
+  avalanche_priority: string[];
+  snowball_priority: string[];
+}
+
+export interface EmergencyFundMetrics {
+  total_liquid_cash_usd: number;
+  monthly_burn_baseline_usd: number;
+  runway_months: number;
+  status: string;
+  accounts: { name: string; usd: number }[];
+}
+
+export interface OpenAccountantReport {
+  status: string;
+  financial_independence: FinancialIndependenceMetrics;
+  debt_payoff: DebtPayoffMetrics;
+  emergency_fund: EmergencyFundMetrics;
+}
+

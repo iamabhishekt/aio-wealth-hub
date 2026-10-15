@@ -39,11 +39,12 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
   });
 
   const formatAmount = (amt: number, txCurr: Currency) => {
-    let finalAmt = amt;
+    const absAmt = Math.abs(amt);
+    let finalAmt = absAmt;
     if (currency === 'USD' && txCurr === 'INR') {
-      finalAmt = amt / fxRate;
+      finalAmt = absAmt / fxRate;
     } else if (currency === 'INR' && txCurr === 'USD') {
-      finalAmt = amt * fxRate;
+      finalAmt = absAmt * fxRate;
     }
 
     const symbol = currency === 'USD' ? '$' : '₹';
@@ -177,7 +178,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
                       </span>
                       {currency !== tx.currency && (
                         <span className="block text-[10px] text-slate-500 font-normal">
-                          orig: {tx.currency === 'USD' ? '$' : '₹'}{tx.amount.toFixed(2)}
+                          orig: {tx.currency === 'USD' ? '$' : '₹'}{Math.abs(tx.amount).toFixed(2)}
                         </span>
                       )}
                     </td>
