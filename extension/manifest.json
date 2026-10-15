@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "AIO Wealth Hub — Everyday Chrome Bridge",
+  "version": "1.0.0",
+  "description": "Zero-friction bridge to sync financial balances and active subscriptions directly from your regular Chrome profile to your local AIO Wealth Hub.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:8088/*",
+    "http://127.0.0.1:8088/*",
+    "https://*.chase.com/*",
+    "https://*.americanexpress.com/*",
+    "https://*.marcus.com/*",
+    "https://*.citi.com/*",
+    "https://*.pnc.com/*",
+    "https://*.robinhood.com/*",
+    "https://play.google.com/store/account/subscriptions*",
+    "https://www.netflix.com/youraccount*",
+    "https://*.crobo.money/*",
+    "https://*.remitly.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AIO Wealth Hub Bridge"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.chase.com/*",
+        "https://*.americanexpress.com/*",
+        "https://*.marcus.com/*",
+        "https://*.citi.com/*",
+        "https://*.pnc.com/*",
+        "https://*.robinhood.com/*",
+        "https://play.google.com/store/account/subscriptions*",
+        "https://www.netflix.com/youraccount*",
+        "https://*.crobo.money/*",
+        "https://*.remitly.com/*"
+      ],
+      "js": ["content.js"]
+    }
+  ]
+}

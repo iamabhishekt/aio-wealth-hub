@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 320px;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #090d16;
+      color: #f1f5f9;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #0ea5e9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: #090d16;
+      font-size: 14px;
+    }
+    h1 {
+      font-size: 14px;
+      margin: 0;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 3px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      margin-bottom: 12px;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+    .card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      background: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      background: #0369a1;
+    }
+    .btn-secondary {
+      background: #1e293b;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+    .btn-secondary:hover {
+      background: #334155;
+      color: #f1f5f9;
+    }
+    .quick-links {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .quick-btn {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .quick-btn:hover {
+      background: #334155;
+      color: white;
+    }
+    .result-box {
+      font-size: 11px;
+      color: #10b981;
+      margin-top: 8px;
+      min-height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">A</div>
+    <div>
+      <h1>AIO Wealth Vault Bridge</h1>
+      <span style="font-size: 10px; color: #64748b;">Everyday Chrome Profile Sync</span>
+    </div>
+  </div>
+
+  <div class="status-badge">
+    <span class="dot"></span>
+    <span id="backendStatus">Backend: Checking...</span>
+  </div>
+
+  <div class="card">
+    <div style="color: #94a3b8; font-size: 10px; text-transform: uppercase; margin-bottom: 4px;">Active Page</div>
+    <div id="activeDomain" style="font-weight: 600; color: #f8fafc; word-break: break-all;">Detecting...</div>
+    <div id="detectedType" style="color: #38bdf8; font-size: 11px; margin-top: 4px;">—</div>
+  </div>
+
+  <button id="syncBtn" class="btn">⚡ Sync This Tab to Vault</button>
+  <div id="syncResult" class="result-box"></div>
+
+  <div style="font-size: 11px; color: #64748b; margin-top: 12px; margin-bottom: 4px; font-weight: 600;">
+    Direct Portals:
+  </div>
+  <div class="quick-links">
+    <a class="quick-btn" id="openGplay">📱 Google Subs</a>
+    <a class="quick-btn" id="openNetflix">🎬 Netflix</a>
+    <a class="quick-btn" id="openChase">🏦 Chase Bank</a>
+    <a class="quick-btn" id="openAmex">💳 Amex Card</a>
+    <a class="quick-btn" id="openMarcus">📈 Marcus HYSA</a>
+    <a class="quick-btn" id="openVault">🌐 AIO Hub UI</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
