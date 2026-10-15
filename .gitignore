@@ -1,0 +1,12 @@
+# Build outputs
+target/
+dist/
+node_modules/
+
+# Local databases & secrets
+*.sqlite
+*.sqlite-journal
+*.db
+.env
+.env.local
+.DS_Store

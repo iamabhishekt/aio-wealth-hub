@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIO Wealth Hub — Architecture & Forecast Simulator</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      padding: 24px;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+    header {
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .subtitle { color: var(--text-muted); font-size: 15px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 14px; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
+
+    /* Badges */
+    .badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-ready { background: rgba(74, 222, 128, 0.15); color: var(--success); border: 1px solid var(--success); }
+    .badge-pending { background: rgba(251, 191, 36, 0.15); color: var(--warning); border: 1px solid var(--warning); }
+    .badge-rea { background: rgba(56, 189, 248, 0.15); color: var(--accent); border: 1px solid var(--accent); }
+
+    /* Connector List */
+    .connector-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .connector-item:last-child { border-bottom: none; }
+    .connector-name { font-weight: 600; font-size: 14px; }
+    .connector-desc { font-size: 12px; color: var(--text-muted); }
+
+    /* Interactive Simulator */
+    .control-group { margin-bottom: 16px; }
+    .control-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    input[type=range] {
+      width: 100%;
+      height: 6px;
+      background: #334155;
+      border-radius: 3px;
+      outline: none;
+      accent-color: var(--accent);
+    }
+    .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+    .stat-box {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-val { font-size: 20px; font-weight: 700; color: #fff; margin-top: 4px; }
+    .stat-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+
+    /* REA Flow */
+    .step-item {
+      display: flex;
+      margin-bottom: 14px;
+      gap: 12px;
+    }
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .step-text { font-size: 13px; }
+    .step-cmd {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      margin-top: 4px;
+      display: inline-block;
+    }
+
+    /* Currency Toggle */
+    .toggle-bar {
+      display: inline-flex;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 2px;
+      margin-bottom: 15px;
+    }
+    .toggle-btn {
+      padding: 4px 12px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .toggle-btn.active {
+      background: var(--accent);
+      color: #0f172a;
+    }
+
+    /* SVG Canvas */
+    .chart-container {
+      margin-top: 15px;
+      background: #090d16;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      height: 140px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .bar {
+      flex: 1;
+      background: var(--accent);
+      border-radius: 4px 4px 0 0;
+      transition: height 0.2s ease;
+      min-height: 4px;
+      position: relative;
+    }
+    .bar:hover { background: #7dd3fc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AIO Wealth Hub Architecture & Forecast Simulator</h1>
+      <p class="subtitle">Unified financial intelligence across US accounts, Indian assets, Splitwise, credit lines, and subscriptions.</p>
+    </header>
+
+    <div class="grid">
+      <!-- Connectors Status Matrix -->
+      <div class="card">
+        <h2>Active Connector Matrix <span>8 Connectors</span></h2>
+        
+        <div class="connector-item">
+          <div>
+            <div class="connector-name">Splitwise (Expenses & Debt)</div>
+            <div class="connector-desc">OAuth2 REST API • Shared expense balance</div>
+          </div>
+          <span class="badge badge-ready">API Key Needed</span>
+        </div>
+
+        <div class="connector-item">
+          <div>
+            <div class="connector-name">US Financial Connect (Plaid/OFX)</div>
+            <div class="connector-desc">Checking, Savings & Loan Accounts</div>
+          </div>
+          <span class="badge badge-pending">Ready for Link</span>
+        </div>
+
+        <div class="connector-item">
+          <div>
+            <div class="connector-name">Apple Card</div>
+            <div class="connector-desc">Wallet Export / Shortcut / REA SQLite Parser</div>
+          </div>
+          <span class="badge badge-rea">REA / Shortcut</span>
+        </div>
+
+        <div class="connector-item">
+          <div>
+            <div class="connector-name">American Express (Amex)</div>
+            <div class="connector-desc">OFX Ingestion / Statement Parsing</div>
+          </div>
+          <span class="badge badge-ready">Ready for OFX</span>
+        </div>
+
+        <div class="connector-item">
+          <div>
+            <div class="connector-name">Google Play Subscriptions</div>
+            <div class="connector-desc">REA Session Capture & Renewal Extraction</div>
+          </div>
+          <span class="badge badge-rea">REA Session</span>
+        </div>
+
+        <div class="connector-item">
+          <div>
+            <div class="connector-name">Indian Bank & Mutual Funds</div>
+            <div class="connector-desc">RBI Account Aggregator / CAMS-KFintech CAS</div>
+          </div>
+          <span class="badge badge-pending">CAS Drop Ready</span>
+        </div>
+
+        <div class="connector-item">
+          <div>
+            <div class="connector-name">Indian Life Insurance (LIC / Term)</div>
+            <div class="connector-desc">Policy schedules & guaranteed maturity values</div>
+          </div>
+          <span class="badge badge-ready">Schedule Input</span>
+        </div>
+      </div>
+
+      <!-- REA Reverse-Engineering Blueprint -->
+      <div class="card">
+        <h2>REA Skill Extraction Blueprint <span class="badge badge-rea">REA Active</span></h2>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+          How REA extracts tokens, inspects private schemas, and decodes locked statements safely:
+        </p>
+
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div>
+            <div class="step-text"><strong>Apple Card Wallet Extraction</strong></div>
+            <div class="connector-desc">Inspect local transaction store and statement exports without cloud sharing.</div>
+            <div class="step-cmd">npx rea inspect-sqlite-database --path "wallet_snapshot.db"</div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div>
+            <div class="step-text"><strong>Google Play Subscription Interception</strong></div>
+            <div class="connector-desc">Passively capture live subscriptions and renew dates via local CDP browser session.</div>
+            <div class="step-cmd">npx rea inspect-web-page --origin "play.google.com"</div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div>
+            <div class="step-text"><strong>Encrypted Password PDF Decryption</strong></div>
+            <div class="connector-desc">Safely normalize Indian bank e-CAS statements into double-entry ledger rows.</div>
+            <div class="step-cmd">npx rea trace-application-feature --seed "cas_ledger"</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Interactive Wealth & Forecasting Simulator -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h2>Interactive 12-Month Wealth & Runway Simulator</h2>
+        <div class="toggle-bar">
+          <button class="toggle-btn active" id="btn-usd" onclick="setCurrency('USD')">USD ($)</button>
+          <button class="toggle-btn" id="btn-inr" onclick="setCurrency('INR')">INR (₹)</button>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+        Simulate monthly savings, loan interest impact, and subscription cuts across US and Indian currency assets.
+      </p>
+
+      <div class="grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 0;">
+        <div>
+          <div class="control-group">
+            <div class="control-label">
+              <span>Monthly Inflow (Salary/Dividends)</span>
+              <strong id="val-inflow">$8,500</strong>
+            </div>
+            <input type="range" id="rng-inflow" min="2000" max="25000" step="250" value="8500" oninput="updateSim()">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Monthly Fixed Living Expenses</span>
+              <strong id="val-fixed">$3,800</strong>
+            </div>
+            <input type="range" id="rng-fixed" min="1000" max="15000" step="100" value="3800" oninput="updateSim()">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Loan & Debt Payments (Amex / Auto / Personal)</span>
+              <strong id="val-debt">$1,400</strong>
+            </div>
+            <input type="range" id="rng-debt" min="0" max="8000" step="100" value="1400" oninput="updateSim()">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Recurring Subscriptions (Google Play + Web)</span>
+              <strong id="val-subs">$220</strong>
+            </div>
+            <input type="range" id="rng-subs" min="0" max="1000" step="10" value="220" oninput="updateSim()">
+          </div>
+        </div>
+
+        <div>
+          <div class="stat-row" style="margin-top: 0;">
+            <div class="stat-box">
+              <div class="stat-lbl">Monthly Net Surplus</div>
+              <div class="stat-val" id="res-surplus" style="color: var(--success);">$3,080</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-lbl">Annual Wealth Growth</div>
+              <div class="stat-val" id="res-annual" style="color: var(--accent);">$36,960</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-lbl">Subscription Drag / Yr</div>
+              <div class="stat-val" id="res-drag" style="color: var(--danger);">$2,640</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 15px; font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between;">
+            <span>12-Month Projected Cumulative Surplus Curve:</span>
+            <span id="fx-rate-label">FX Rate: 1 USD = 86.5 INR</span>
+          </div>
+
+          <div class="chart-container" id="chart-bars">
+            <!-- Dynamic SVG or bars injected by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentCurrency = 'USD';
+    const FX_RATE = 86.5;
+
+    function setCurrency(cur) {
+      currentCurrency = cur;
+      document.getElementById('btn-usd').classList.toggle('active', cur === 'USD');
+      document.getElementById('btn-inr').classList.toggle('active', cur === 'INR');
+      updateSim();
+    }
+
+    function formatVal(valUSD) {
+      if (currentCurrency === 'USD') {
+        return '$' + Math.round(valUSD).toLocaleString();
+      } else {
+        return '₹' + Math.round(valUSD * FX_RATE).toLocaleString();
+      }
+    }
+
+    function updateSim() {
+      const inflow = parseFloat(document.getElementById('rng-inflow').value);
+      const fixed = parseFloat(document.getElementById('rng-fixed').value);
+      const debt = parseFloat(document.getElementById('rng-debt').value);
+      const subs = parseFloat(document.getElementById('rng-subs').value);
+
+      document.getElementById('val-inflow').innerText = formatVal(inflow);
+      document.getElementById('val-fixed').innerText = formatVal(fixed);
+      document.getElementById('val-debt').innerText = formatVal(debt);
+      document.getElementById('val-subs').innerText = formatVal(subs);
+
+      const netSurplus = inflow - (fixed + debt + subs);
+      const annualSurplus = netSurplus * 12;
+      const subDrag = subs * 12;
+
+      document.getElementById('res-surplus').innerText = formatVal(netSurplus);
+      document.getElementById('res-surplus').style.color = netSurplus >= 0 ? 'var(--success)' : 'var(--danger)';
+      document.getElementById('res-annual').innerText = formatVal(annualSurplus);
+      document.getElementById('res-drag').innerText = formatVal(subDrag);
+
+      renderBars(netSurplus);
+    }
+
+    function renderBars(monthlySurplus) {
+      const container = document.getElementById('chart-bars');
+      container.innerHTML = '';
+      const baseHeight = 100;
+      for (let m = 1; m <= 12; m++) {
+        const cumulative = monthlySurplus * m;
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        const heightPct = Math.min(Math.max((cumulative / (Math.max(monthlySurplus * 12, 1000))) * 100, 5), 100);
+        bar.style.height = (heightPct > 0 ? heightPct : 5) + '%';
+        bar.style.background = monthlySurplus >= 0 ? 'var(--accent)' : 'var(--danger)';
+        bar.title = 'Month ' + m + ': ' + formatVal(cumulative);
+        container.appendChild(bar);
+      }
+    }
+
+    // Initialize
+    updateSim();
+  </script>
+</body>
+</html>

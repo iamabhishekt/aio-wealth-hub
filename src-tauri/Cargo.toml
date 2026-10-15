@@ -1,0 +1,18 @@
+[package]
+name = "aio-wealth-hub"
+version = "0.1.0"
+description = "AIO Personal Wealth & Financial Intelligence Hub (iOS, Android, Desktop, Web)"
+authors = ["iamabhishekt <abhishekthakur.art@protonmail.com>"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = [] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+aio_wealth_core = { path = "../backend" }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
