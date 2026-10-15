@@ -13,6 +13,7 @@ use tower_http::cors::{Any, CorsLayer};
 #[derive(Clone)]
 struct AppState {
     db: LedgerDb,
+    daemon: SyncDaemon,
 }
 
 #[derive(Deserialize)]
@@ -39,7 +40,18 @@ async fn main() -> anyhow::Result<()> {
     let db = LedgerDb::open_file(&db_path)?;
     println!("[aio-wealth-hub] Initialized SQLite store at: {}", db_path);
 
-    let state = AppState { db };
+    // Initialize automated sync daemon (default hot folder: ~/Documents/AIO-Wealth-Statements)
+    let hot_folder = std::env::var("WEALTH_HOT_FOLDER")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| SyncDaemon::default_hot_folder());
+    let splitwise_key = std::env::var("SPLITWISE_API_KEY").ok();
+
+    let daemon = SyncDaemon::new(hot_folder.clone(), splitwise_key);
+
+    // Spawn automated background scheduler (runs twice per day, every 12h)
+    daemon.clone().spawn_background_scheduler(db.clone());
+
+    let state = AppState { db, daemon };
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -54,6 +66,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/parse/apple-card", post(parse_apple_card))
         .route("/api/parse/amex", post(parse_amex))
         .route("/api/connectors/splitwise/sync", post(sync_splitwise))
+        .route("/api/sync/status", get(sync_status_handler))
+        .route("/api/sync/trigger", post(sync_trigger_handler))
         .layer(cors)
         .with_state(state);
 
@@ -76,7 +90,8 @@ async fn health_handler() -> impl IntoResponse {
         "status": "healthy",
         "service": "aio-wealth-hub-core",
         "version": "0.1.0",
-        "cost": "$0.00 (100% free / local)"
+        "cost": "$0.00 (100% free / local)",
+        "automation": "Twice daily background daemon (08:00 & 20:00)"
     }))
 }
 
@@ -133,7 +148,7 @@ async fn get_forecast(
         .get_subscriptions()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let income = params.monthly_income.unwrap_or(6000.0);
+    let income = params.monthly_income.unwrap_or(7500.0);
     let fx = params.fx_rate.unwrap_or(86.5);
 
     let forecast = WealthForecaster::compute_snapshot(&accounts, &subs, income, fx);
@@ -189,4 +204,23 @@ async fn sync_splitwise(
             Err(StatusCode::BAD_REQUEST)
         }
     }
+}
+
+async fn sync_status_handler(State(state): State<AppState>) -> impl IntoResponse {
+    Json(serde_json::json!({
+        "status": "active",
+        "schedule": "Twice daily (every 12 hours)",
+        "hot_folder": state.daemon.hot_folder.display().to_string(),
+        "iCloud_supported": true,
+        "supported_formats": ["CSV", "OFX", "QFX", "PDF (e-CAS)"]
+    }))
+}
+
+async fn sync_trigger_handler(State(state): State<AppState>) -> Result<Json<SyncReport>, StatusCode> {
+    state
+        .daemon
+        .run_sync_cycle(&state.db)
+        .await
+        .map(Json)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }

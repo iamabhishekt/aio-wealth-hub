@@ -7,6 +7,7 @@ import { SplitwisePanel } from './components/SplitwisePanel';
 import { ForecasterChart } from './components/ForecasterChart';
 import { StatementImporter } from './components/StatementImporter';
 import { NativeDeviceBar } from './components/NativeDeviceBar';
+import { AutomatedSyncCard } from './components/AutomatedSyncCard';
 import { nativeBridge } from './nativeBridge';
 import {
   LayoutDashboard,
@@ -503,6 +504,8 @@ export const App: React.FC = () => {
 
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            <AutomatedSyncCard />
+
             <NetWorthHero
               forecast={forecast}
               currency={currency}

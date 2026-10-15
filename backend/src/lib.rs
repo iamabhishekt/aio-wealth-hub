@@ -2,11 +2,13 @@ pub mod connectors;
 pub mod forecaster;
 pub mod ledger;
 pub mod models;
+pub mod sync_daemon;
 
 pub use connectors::*;
 pub use forecaster::*;
 pub use ledger::*;
 pub use models::*;
+pub use sync_daemon::*;
 
 #[cfg(test)]
 mod tests {

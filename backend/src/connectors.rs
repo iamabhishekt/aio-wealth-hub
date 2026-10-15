@@ -96,6 +96,35 @@ impl StatementParser {
         }
         txs
     }
+
+    /// Parse OFX / QFX bank or Apple Card statement using open-source ofxy
+    pub fn parse_ofx_statement(ofx_content: &str, account_id: &str) -> Vec<Transaction> {
+        let mut txs = Vec::new();
+        if let Ok(doc) = ofx_content.parse::<ofxy::Ofx>() {
+            if let Some(cc) = doc.body.credit_card {
+                let resp = &cc.transaction_response;
+                if let Some(bank_txs) = &resp.statement.bank_transactions {
+                    for (i, tx) in bank_txs.transactions.iter().enumerate() {
+                        let amount = tx.amount.to_string().parse::<f64>().unwrap_or(0.0);
+                        let merchant = tx.name.clone().unwrap_or_else(|| "Unknown".to_string());
+                        let date = tx.date_posted.to_string();
+                        txs.push(Transaction {
+                            id: format!("ofx-{}-{}", account_id, i),
+                            account_id: account_id.to_string(),
+                            date,
+                            amount,
+                            currency: Currency::USD,
+                            merchant,
+                            category: "Credit Card".to_string(),
+                            is_recurring: false,
+                            notes: Some("OFX Statement Import".to_string()),
+                        });
+                    }
+                }
+            }
+        }
+        txs
+    }
 }
 
 pub struct IndianAssetsConnector;
