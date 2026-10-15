@@ -20,7 +20,10 @@
     "https://play.google.com/store/account/subscriptions*",
     "https://www.netflix.com/youraccount*",
     "https://*.crobo.money/*",
-    "https://*.remitly.com/*"
+    "https://*.remitly.com/*",
+    "https://*.paypal.com/*",
+    "https://*.xoom.com/*",
+    "https://*.costco.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -38,7 +41,10 @@
         "https://play.google.com/store/account/subscriptions*",
         "https://www.netflix.com/youraccount*",
         "https://*.crobo.money/*",
-        "https://*.remitly.com/*"
+        "https://*.remitly.com/*",
+        "https://*.paypal.com/*",
+        "https://*.xoom.com/*",
+        "https://*.costco.com/*"
       ],
       "js": ["content.js"]
     }

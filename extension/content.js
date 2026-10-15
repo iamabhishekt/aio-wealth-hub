@@ -115,6 +115,109 @@ function parseCurrentPage() {
     }
   }
 
+  // 6. PNC Bank
+  else if (host.includes("pnc.com")) {
+    result.detectedType = "account:pnc";
+    const pncMatch = bodyText.match(/(?:Spend|Virtual Wallet|Checking|Available Balance).*?\$([\d,]+\.\d{2})/i);
+    if (pncMatch) {
+      result.accounts.push({
+        id: "us-pnc-spend-7558",
+        name: "PNC Virtual Wallet Student Spend (***7558)",
+        account_type: "CashChecking",
+        currency: "USD",
+        balance: parseFloat(pncMatch[1].replace(/,/g, "")),
+        apr: 0.0,
+        monthly_min_payment: 0.0,
+        institution: "PNC Bank"
+      });
+    }
+  }
+
+  // 7. Robinhood
+  else if (host.includes("robinhood.com")) {
+    result.detectedType = "account:robinhood";
+    const rhMatch = bodyText.match(/\$([\d,]+\.\d{2})/);
+    if (rhMatch) {
+      result.accounts.push({
+        id: "us-robinhood-investing",
+        name: "Robinhood Brokerage & Crypto",
+        account_type: "InvestmentBrokerage",
+        currency: "USD",
+        balance: parseFloat(rhMatch[1].replace(/,/g, "")),
+        apr: 0.0,
+        monthly_min_payment: 0.0,
+        institution: "Robinhood"
+      });
+    }
+  }
+
+  // 8. PayPal
+  else if (host.includes("paypal.com")) {
+    result.detectedType = "account:paypal";
+    const ppMatch = bodyText.match(/(?:PayPal balance|Balance).*?\$([\d,]+\.\d{2})/i) ||
+                    bodyText.match(/\$([\d,]+\.\d{2})/);
+    if (ppMatch) {
+      result.accounts.push({
+        id: "us-paypal-wallet",
+        name: "PayPal Cash Wallet",
+        account_type: "CashDigital",
+        currency: "USD",
+        balance: parseFloat(ppMatch[1].replace(/,/g, "")),
+        apr: 0.0,
+        monthly_min_payment: 0.0,
+        institution: "PayPal"
+      });
+    }
+  }
+
+  // 9. Remitly
+  else if (host.includes("remitly.com")) {
+    result.detectedType = "service:remitly";
+    const transferMatch = bodyText.match(/(?:Sent|Delivered|Transferred).*?([\$₹])\s*([\d,]+(?:\.\d{2})?)/i);
+    if (transferMatch) {
+      result.accounts.push({
+        id: "remitly-history",
+        name: "Remitly Transfer Portal",
+        account_type: "TransferGateway",
+        currency: transferMatch[1] === "₹" ? "INR" : "USD",
+        balance: 0.0,
+        apr: 0.0,
+        monthly_min_payment: 0.0,
+        institution: "Remitly"
+      });
+    }
+  }
+
+  // 10. Crobo (crobo.money)
+  else if (host.includes("crobo.money")) {
+    result.detectedType = "service:crobo";
+    result.accounts.push({
+      id: "crobo-transfer-gateway",
+      name: "Crobo Remittance",
+      account_type: "TransferGateway",
+      currency: "USD",
+      balance: 0.0,
+      apr: 0.0,
+      monthly_min_payment: 0.0,
+      institution: "Crobo"
+    });
+  }
+
+  // 11. Xoom
+  else if (host.includes("xoom.com")) {
+    result.detectedType = "service:xoom";
+    result.accounts.push({
+      id: "xoom-transfer-gateway",
+      name: "Xoom (PayPal Service)",
+      account_type: "TransferGateway",
+      currency: "USD",
+      balance: 0.0,
+      apr: 0.0,
+      monthly_min_payment: 0.0,
+      institution: "Xoom"
+    });
+  }
+
   return result;
 }
 
