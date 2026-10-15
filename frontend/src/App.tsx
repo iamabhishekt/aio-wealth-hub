@@ -8,6 +8,7 @@ import { ForecasterChart } from './components/ForecasterChart';
 import { StatementImporter } from './components/StatementImporter';
 import { NativeDeviceBar } from './components/NativeDeviceBar';
 import { AutomatedSyncCard } from './components/AutomatedSyncCard';
+import { TransactionsTable } from './components/TransactionsTable';
 import { nativeBridge } from './nativeBridge';
 import {
   LayoutDashboard,
@@ -18,6 +19,7 @@ import {
   FileSpreadsheet,
   Lock,
   Unlock,
+  ReceiptText,
 } from 'lucide-react';
 
 const DEFAULT_FX_RATE = 86.5;
@@ -26,8 +28,9 @@ export const App: React.FC = () => {
   const [isLocked, setIsLocked] = useState(true);
   const [currency, setCurrency] = useState<Currency>('USD');
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'accounts' | 'subscriptions' | 'splitwise' | 'forecaster' | 'import'
+    'overview' | 'accounts' | 'transactions' | 'subscriptions' | 'splitwise' | 'forecaster' | 'import'
   >('overview');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const [accounts, setAccounts] = useState<Account[]>([
     {
@@ -274,7 +277,7 @@ export const App: React.FC = () => {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Initial biometrics unlock attempt
+  // Initial biometrics unlock attempt & data hydration
   useEffect(() => {
     // Attempt biometric unlock on app mount
     nativeBridge.authenticateBiometrics().then((success) => {
@@ -282,6 +285,31 @@ export const App: React.FC = () => {
         setIsLocked(false);
       }
     });
+
+    // Hydrate accounts from backend
+    fetch('http://localhost:8088/api/accounts')
+      .then((r) => r.json())
+      .then((backendAccounts: Account[]) => {
+        if (backendAccounts && Array.isArray(backendAccounts) && backendAccounts.length > 0) {
+          setAccounts((prev) => {
+            const map = new Map<string, Account>();
+            prev.forEach((a) => map.set(a.id, a));
+            backendAccounts.forEach((ba) => map.set(ba.id, ba));
+            return Array.from(map.values());
+          });
+        }
+      })
+      .catch((err) => console.log('Backend accounts fetch note:', err));
+
+    // Hydrate verified transactions from backend
+    fetch('http://localhost:8088/api/transactions')
+      .then((r) => r.json())
+      .then((data: Transaction[]) => {
+        if (data && Array.isArray(data)) {
+          setTransactions(data);
+        }
+      })
+      .catch((err) => console.log('Backend transactions fetch note:', err));
   }, []);
 
   const handleUnlock = async () => {
@@ -337,7 +365,7 @@ export const App: React.FC = () => {
     monthlyBurnUsd += subDragMonthly;
 
     const netWorthUsd = assetsUsd - liabilitiesUsd;
-    const monthlyIncomeUsd = 7500;
+    const monthlyIncomeUsd = 5243.42; // Verified Paychex Weekly Net ($1,210.02 * 52 / 12)
     const monthlySurplusUsd = monthlyIncomeUsd - monthlyBurnUsd;
 
     const curve: number[] = [];
@@ -455,6 +483,14 @@ export const App: React.FC = () => {
               Accounts & Debt
             </button>
             <button
+              onClick={() => setActiveTab('transactions')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+                activeTab === 'transactions' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Transactions ({transactions.length})
+            </button>
+            <button
               onClick={() => setActiveTab('subscriptions')}
               className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                 activeTab === 'subscriptions' ? 'bg-vault-800 text-white font-bold' : 'text-slate-400 hover:text-white'
@@ -535,6 +571,12 @@ export const App: React.FC = () => {
               onAddAccount={handleAddAccount}
             />
 
+            <TransactionsTable
+              transactions={transactions}
+              currency={currency}
+              fxRate={DEFAULT_FX_RATE}
+            />
+
             <SubscriptionRadar
               subscriptions={subscriptions}
               currency={currency}
@@ -550,6 +592,14 @@ export const App: React.FC = () => {
             currency={currency}
             fxRate={DEFAULT_FX_RATE}
             onAddAccount={handleAddAccount}
+          />
+        )}
+
+        {activeTab === 'transactions' && (
+          <TransactionsTable
+            transactions={transactions}
+            currency={currency}
+            fxRate={DEFAULT_FX_RATE}
           />
         )}
 
@@ -611,6 +661,19 @@ export const App: React.FC = () => {
         >
           <CreditCard className="w-5 h-5" />
           <span className="text-[10px] font-medium">Accounts</span>
+        </button>
+
+        <button
+          onClick={() => {
+            nativeBridge.triggerHaptic('light');
+            setActiveTab('transactions');
+          }}
+          className={`flex flex-col items-center gap-1 p-2 rounded-xl ${
+            activeTab === 'transactions' ? 'text-vault-cyan' : 'text-slate-400'
+          }`}
+        >
+          <ReceiptText className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Txns</span>
         </button>
 
         <button

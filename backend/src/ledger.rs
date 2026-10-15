@@ -1,4 +1,4 @@
-use crate::models::{Account, AccountType, Currency, EmailAccountConfig, Subscription};
+use crate::models::{Account, AccountType, Currency, EmailAccountConfig, Subscription, Transaction};
 use anyhow::Result;
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -288,5 +288,63 @@ impl LedgerDb {
             params![timestamp, id],
         )?;
         Ok(())
+    }
+
+    pub fn insert_transaction(&self, tx: &Transaction) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let cur_str = match tx.currency {
+            Currency::USD => "USD",
+            Currency::INR => "INR",
+        };
+        conn.execute(
+            r#"
+            INSERT INTO transactions (id, account_id, date, amount, currency, merchant, category, is_recurring, notes)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            ON CONFLICT(id) DO UPDATE SET
+                amount = excluded.amount,
+                date = excluded.date,
+                category = excluded.category,
+                notes = excluded.notes;
+            "#,
+            params![
+                tx.id,
+                tx.account_id,
+                tx.date,
+                tx.amount,
+                cur_str,
+                tx.merchant,
+                tx.category,
+                if tx.is_recurring { 1 } else { 0 },
+                tx.notes
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_transactions(&self) -> Result<Vec<Transaction>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, account_id, date, amount, currency, merchant, category, is_recurring, notes FROM transactions ORDER BY date DESC")?;
+        let rows = stmt.query_map([], |row| {
+            let cur_str: String = row.get(4)?;
+            let currency = if cur_str == "INR" { Currency::INR } else { Currency::USD };
+            let is_rec: i32 = row.get(7)?;
+            Ok(Transaction {
+                id: row.get(0)?,
+                account_id: row.get(1)?,
+                date: row.get(2)?,
+                amount: row.get(3)?,
+                currency,
+                merchant: row.get(5)?,
+                category: row.get(6)?,
+                is_recurring: is_rec == 1,
+                notes: row.get(8)?,
+            })
+        })?;
+
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
     }
 }

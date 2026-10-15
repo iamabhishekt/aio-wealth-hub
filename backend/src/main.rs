@@ -72,6 +72,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/connectors/splitwise/sync", post(sync_splitwise))
         .route("/api/sync/status", get(sync_status_handler))
         .route("/api/sync/trigger", post(sync_trigger_handler))
+        .route("/api/transactions", get(list_transactions))
         .route("/api/email-accounts", get(list_email_accounts).post(upsert_email_account))
         .route("/api/email-accounts/:id", delete(delete_email_account))
         .route("/api/email-accounts/test", post(test_email_account))
@@ -228,6 +229,16 @@ async fn sync_trigger_handler(State(state): State<AppState>) -> Result<Json<Sync
         .daemon
         .run_sync_cycle(&state.db)
         .await
+        .map(Json)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+async fn list_transactions(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<Transaction>>, StatusCode> {
+    state
+        .db
+        .get_transactions()
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }

@@ -91,7 +91,9 @@ impl SyncDaemon {
                         files_scanned += 1;
                         if let Ok(content) = fs::read_to_string(&path) {
                             let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
-                            let txs = if file_name.contains("apple") {
+                            let txs = if file_name.contains("alert") {
+                                StatementParser::parse_alert_or_generic_csv(&content, &file_name)
+                            } else if file_name.contains("apple") {
                                 StatementParser::parse_apple_card_csv(&content, "us-apple-card")
                             } else if file_name.contains("amex") {
                                 StatementParser::parse_amex_csv(&content, "us-amex-card")
@@ -100,8 +102,12 @@ impl SyncDaemon {
                             } else if ext == "ofx" || ext == "qfx" {
                                 StatementParser::parse_ofx_statement(&content, "auto-ofx-import")
                             } else {
-                                StatementParser::parse_apple_card_csv(&content, "auto-csv-import")
+                                StatementParser::parse_alert_or_generic_csv(&content, "auto-csv-import")
                             };
+
+                            for tx in &txs {
+                                let _ = db.insert_transaction(tx);
+                            }
 
                             total_imported += txs.len();
 

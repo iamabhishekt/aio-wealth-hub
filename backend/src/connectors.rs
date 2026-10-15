@@ -125,6 +125,46 @@ impl StatementParser {
         }
         txs
     }
+
+    /// Parse normalized alert CSV (Transaction Date,Description,Category,Amount,Currency)
+    pub fn parse_alert_or_generic_csv(csv_content: &str, account_id: &str) -> Vec<Transaction> {
+        let mut txs = Vec::new();
+        for (i, line) in csv_content.lines().enumerate() {
+            if i == 0 || line.trim().is_empty() {
+                continue;
+            }
+            let cols: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
+            if cols.len() >= 4 {
+                let date = cols[0].to_string();
+                let merchant = cols[1].replace('"', "");
+                let category = cols[2].replace('"', "");
+                let amount = cols[3]
+                    .replace('"', "")
+                    .replace('$', "")
+                    .replace('₹', "")
+                    .parse::<f64>()
+                    .unwrap_or(0.0);
+                let cur = if cols.len() >= 5 && cols[4].to_uppercase().contains("INR") {
+                    Currency::INR
+                } else {
+                    Currency::USD
+                };
+
+                txs.push(Transaction {
+                    id: format!("{}-{}-{}", account_id, date.replace(' ', "_").replace(':', "-"), i),
+                    account_id: account_id.to_string(),
+                    date,
+                    amount,
+                    currency: cur,
+                    merchant,
+                    category,
+                    is_recurring: true,
+                    notes: Some("Automated Email Alert Ingestion".to_string()),
+                });
+            }
+        }
+        txs
+    }
 }
 
 pub struct IndianAssetsConnector;
