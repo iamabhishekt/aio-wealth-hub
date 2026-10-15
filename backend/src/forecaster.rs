@@ -54,6 +54,7 @@ impl WealthForecaster {
                 AccountType::CreditCardAmex
                 | AccountType::CreditCardApple
                 | AccountType::CreditCardChase
+                | AccountType::CreditCardCiti
                 | AccountType::LoanAuto
                 | AccountType::LoanStudent
                 | AccountType::LoanPersonal

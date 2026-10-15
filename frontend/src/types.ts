@@ -6,6 +6,7 @@ export type AccountType =
   | 'CreditCardAmex'
   | 'CreditCardApple'
   | 'CreditCardChase'
+  | 'CreditCardCiti'
   | 'LoanAuto'
   | 'LoanStudent'
   | 'LoanPersonal'

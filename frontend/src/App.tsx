@@ -340,6 +340,7 @@ export const App: React.FC = () => {
           'CreditCardAmex',
           'CreditCardApple',
           'CreditCardChase',
+          'CreditCardCiti',
           'LoanAuto',
           'LoanStudent',
           'LoanPersonal',

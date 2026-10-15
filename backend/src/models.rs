@@ -14,6 +14,7 @@ pub enum AccountType {
     CreditCardAmex,
     CreditCardApple,
     CreditCardChase,
+    CreditCardCiti,
     LoanAuto,
     LoanStudent,
     LoanPersonal,

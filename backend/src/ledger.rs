@@ -128,6 +128,7 @@ impl LedgerDb {
                 "CreditCardAmex" => AccountType::CreditCardAmex,
                 "CreditCardApple" => AccountType::CreditCardApple,
                 "CreditCardChase" => AccountType::CreditCardChase,
+                "CreditCardCiti" => AccountType::CreditCardCiti,
                 "LoanAuto" => AccountType::LoanAuto,
                 "LoanStudent" => AccountType::LoanStudent,
                 "LoanPersonal" => AccountType::LoanPersonal,
