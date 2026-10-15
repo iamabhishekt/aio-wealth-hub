@@ -149,3 +149,140 @@ impl GooglePlayConnector {
         }
     }
 }
+
+pub struct ProviderConnector;
+
+impl ProviderConnector {
+    /// Toyota Financial Services Auto Loan
+    pub fn create_toyota_auto_loan(remaining_principal_usd: f64, apr: f64, monthly_payment_usd: f64) -> Account {
+        Account {
+            id: "loan-toyota-financial".to_string(),
+            name: "Toyota Financial Services (Auto Loan)".to_string(),
+            account_type: AccountType::LoanAuto,
+            currency: Currency::USD,
+            balance: remaining_principal_usd,
+            apr: Some(apr),
+            monthly_min_payment: Some(monthly_payment_usd),
+            institution: "Toyota Financial Services".to_string(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// HDFC Home Loan (India)
+    pub fn create_hdfc_home_loan(principal_inr: f64, roi_pct: f64, monthly_emi_inr: f64) -> Account {
+        Account {
+            id: "loan-hdfc-homeloan".to_string(),
+            name: "HDFC Home Loan".to_string(),
+            account_type: AccountType::LoanMortgage,
+            currency: Currency::INR,
+            balance: principal_inr,
+            apr: Some(roi_pct),
+            monthly_min_payment: Some(monthly_emi_inr),
+            institution: "HDFC Bank".to_string(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Chase Bank Checking & Sapphire/Freedom Credit Card
+    pub fn create_chase_checking(balance_usd: f64) -> Account {
+        Account {
+            id: "bank-chase-checking".to_string(),
+            name: "Chase Total Checking (Debit)".to_string(),
+            account_type: AccountType::CashChecking,
+            currency: Currency::USD,
+            balance: balance_usd,
+            apr: None,
+            monthly_min_payment: None,
+            institution: "JPMorgan Chase".to_string(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    pub fn create_chase_credit(balance_usd: f64, apr: f64, min_due: f64) -> Account {
+        Account {
+            id: "card-chase-sapphire".to_string(),
+            name: "Chase Sapphire / Freedom".to_string(),
+            account_type: AccountType::CreditCardChase,
+            currency: Currency::USD,
+            balance: balance_usd,
+            apr: Some(apr),
+            monthly_min_payment: Some(min_due),
+            institution: "JPMorgan Chase".to_string(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// PNC Bank Virtual Wallet / Checking
+    pub fn create_pnc_checking(balance_usd: f64) -> Account {
+        Account {
+            id: "bank-pnc-checking".to_string(),
+            name: "PNC Bank Virtual Wallet".to_string(),
+            account_type: AccountType::CashChecking,
+            currency: Currency::USD,
+            balance: balance_usd,
+            apr: None,
+            monthly_min_payment: None,
+            institution: "PNC Bank".to_string(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Progressive Auto / Home Insurance
+    pub fn create_progressive_insurance(monthly_premium_usd: f64) -> Account {
+        Account {
+            id: "ins-progressive".to_string(),
+            name: "Progressive Auto / Home Insurance".to_string(),
+            account_type: AccountType::InsurancePolicy,
+            currency: Currency::USD,
+            balance: 0.0,
+            apr: None,
+            monthly_min_payment: Some(monthly_premium_usd),
+            institution: "Progressive Casualty Insurance".to_string(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Robinhood Investment Portfolio
+    pub fn create_robinhood_portfolio(portfolio_value_usd: f64) -> Account {
+        Account {
+            id: "inv-robinhood".to_string(),
+            name: "Robinhood (Equities & Crypto)".to_string(),
+            account_type: AccountType::InvestmentStock,
+            currency: Currency::USD,
+            balance: portfolio_value_usd,
+            apr: None,
+            monthly_min_payment: None,
+            institution: "Robinhood Financial".to_string(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Recurring Utility Bills (PSEG, Verizon Fios, T-Mobile, Jio, Airtel)
+    pub fn create_utility_account(id: &str, name: &str, institution: &str, monthly_cost: f64, currency: Currency) -> Account {
+        Account {
+            id: id.to_string(),
+            name: name.to_string(),
+            account_type: AccountType::UtilityRecurring,
+            currency,
+            balance: 0.0,
+            apr: None,
+            monthly_min_payment: Some(monthly_cost),
+            institution: institution.to_string(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Streaming Subscriptions (Netflix India, JioHotstar)
+    pub fn create_streaming_sub(id: &str, name: &str, cost: f64, currency: Currency, source: &str, renewal: &str) -> Subscription {
+        Subscription {
+            id: id.to_string(),
+            service_name: name.to_string(),
+            source: source.to_string(),
+            cost_per_cycle: cost,
+            currency,
+            cycle: "Monthly".to_string(),
+            next_renewal: renewal.to_string(),
+            status: "Active".to_string(),
+        }
+    }
+}

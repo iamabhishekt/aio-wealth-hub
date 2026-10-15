@@ -5,6 +5,7 @@ export type AccountType =
   | 'CashSavings'
   | 'CreditCardAmex'
   | 'CreditCardApple'
+  | 'CreditCardChase'
   | 'LoanAuto'
   | 'LoanStudent'
   | 'LoanPersonal'
@@ -15,6 +16,8 @@ export type AccountType =
   | 'IndianLICPolicy'
   | 'IndianPPF'
   | 'IndianEPF'
+  | 'InsurancePolicy'
+  | 'UtilityRecurring'
   | 'SplitwiseNetBalance';
 
 export interface Account {

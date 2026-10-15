@@ -53,11 +53,16 @@ impl WealthForecaster {
                 }
                 AccountType::CreditCardAmex
                 | AccountType::CreditCardApple
+                | AccountType::CreditCardChase
                 | AccountType::LoanAuto
                 | AccountType::LoanStudent
                 | AccountType::LoanPersonal
                 | AccountType::LoanMortgage => {
                     total_liabilities_usd += bal_usd.abs();
+                    monthly_debt_service_usd += min_pay_norm;
+                }
+                AccountType::InsurancePolicy
+                | AccountType::UtilityRecurring => {
                     monthly_debt_service_usd += min_pay_norm;
                 }
                 AccountType::SplitwiseNetBalance => {

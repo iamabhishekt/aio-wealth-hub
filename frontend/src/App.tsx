@@ -31,13 +31,35 @@ export const App: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([
     {
       id: 'us-chase-chk',
-      name: 'Chase Total Checking',
+      name: 'Chase Total Checking (Debit)',
       account_type: 'CashChecking',
       currency: 'USD',
       balance: 5400,
       apr: null,
       monthly_min_payment: null,
-      institution: 'Chase Bank',
+      institution: 'JPMorgan Chase',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'us-chase-credit',
+      name: 'Chase Sapphire / Freedom (Credit)',
+      account_type: 'CreditCardChase',
+      currency: 'USD',
+      balance: 1850,
+      apr: 21.49,
+      monthly_min_payment: 185,
+      institution: 'JPMorgan Chase',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'us-pnc-chk',
+      name: 'PNC Bank Virtual Wallet',
+      account_type: 'CashChecking',
+      currency: 'USD',
+      balance: 3200,
+      apr: null,
+      monthly_min_payment: null,
+      institution: 'PNC Bank',
       updated_at: new Date().toISOString(),
     },
     {
@@ -63,19 +85,52 @@ export const App: React.FC = () => {
       updated_at: new Date().toISOString(),
     },
     {
-      id: 'us-auto-loan',
-      name: 'Auto Loan',
+      id: 'us-toyota-loan',
+      name: 'Toyota Financial Services (Auto Loan)',
       account_type: 'LoanAuto',
       currency: 'USD',
       balance: 18500,
       apr: 4.8,
       monthly_min_payment: 380,
-      institution: 'Capital One Auto',
+      institution: 'Toyota Financial Services',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'in-hdfc-home',
+      name: 'HDFC Home Loan (EMI)',
+      account_type: 'LoanMortgage',
+      currency: 'INR',
+      balance: 4500000,
+      apr: 8.5,
+      monthly_min_payment: 42500,
+      institution: 'HDFC Bank',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'us-progressive',
+      name: 'Progressive Auto & Home Insurance',
+      account_type: 'InsurancePolicy',
+      currency: 'USD',
+      balance: 0,
+      apr: null,
+      monthly_min_payment: 145,
+      institution: 'Progressive Casualty',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'us-robinhood',
+      name: 'Robinhood (Equities & Crypto)',
+      account_type: 'InvestmentStock',
+      currency: 'USD',
+      balance: 14200,
+      apr: null,
+      monthly_min_payment: null,
+      institution: 'Robinhood Financial',
       updated_at: new Date().toISOString(),
     },
     {
       id: 'in-mf-nifty',
-      name: 'Nippon India Nifty 50 Index',
+      name: 'Nippon India Nifty 50 Index (CAMS e-CAS)',
       account_type: 'InvestmentMutualFund',
       currency: 'INR',
       balance: 450000,
@@ -96,6 +151,61 @@ export const App: React.FC = () => {
       updated_at: new Date().toISOString(),
     },
     {
+      id: 'us-pseg',
+      name: 'PSEG Electric & Gas',
+      account_type: 'UtilityRecurring',
+      currency: 'USD',
+      balance: 0,
+      apr: null,
+      monthly_min_payment: 135,
+      institution: 'PSEG',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'us-verizon',
+      name: 'Verizon Fios Gigabit Fiber',
+      account_type: 'UtilityRecurring',
+      currency: 'USD',
+      balance: 0,
+      apr: null,
+      monthly_min_payment: 79.99,
+      institution: 'Verizon Communications',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'us-tmobile',
+      name: 'T-Mobile 5G Magenta Plan',
+      account_type: 'UtilityRecurring',
+      currency: 'USD',
+      balance: 0,
+      apr: null,
+      monthly_min_payment: 85,
+      institution: 'T-Mobile US',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'in-jio',
+      name: 'Jio Fiber & Mobile Postpaid',
+      account_type: 'UtilityRecurring',
+      currency: 'INR',
+      balance: 0,
+      apr: null,
+      monthly_min_payment: 799,
+      institution: 'Reliance Jio',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'in-airtel',
+      name: 'Airtel Broadband & Postpaid',
+      account_type: 'UtilityRecurring',
+      currency: 'INR',
+      balance: 0,
+      apr: null,
+      monthly_min_payment: 999,
+      institution: 'Bharti Airtel',
+      updated_at: new Date().toISOString(),
+    },
+    {
       id: 'splitwise-net',
       name: 'Splitwise Net Balance',
       account_type: 'SplitwiseNetBalance',
@@ -110,8 +220,28 @@ export const App: React.FC = () => {
 
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([
     {
+      id: 'sub-netflix-in',
+      service_name: 'Netflix India (Premium 4K)',
+      source: 'Netflix India',
+      cost_per_cycle: 649,
+      currency: 'INR',
+      cycle: 'Monthly',
+      next_renewal: '2026-11-05',
+      status: 'Active',
+    },
+    {
+      id: 'sub-jio-hotstar',
+      service_name: 'JioHotstar / Disney+ Hotstar',
+      source: 'Jio / Disney+',
+      cost_per_cycle: 1499,
+      currency: 'INR',
+      cycle: 'Annual',
+      next_renewal: '2027-03-12',
+      status: 'Active',
+    },
+    {
       id: 'sub-google-one',
-      service_name: 'Google One 2TB',
+      service_name: 'Google One 2TB Cloud Storage',
       source: 'Google Play',
       cost_per_cycle: 9.99,
       currency: 'USD',
@@ -138,16 +268,6 @@ export const App: React.FC = () => {
       cycle: 'Annual',
       next_renewal: '2027-02-15',
       status: 'Active',
-    },
-    {
-      id: 'sub-gym',
-      service_name: 'Unused Gym Trial',
-      source: 'Google Play',
-      cost_per_cycle: 29.99,
-      currency: 'USD',
-      cycle: 'Monthly',
-      next_renewal: '2026-10-20',
-      status: 'FlaggedForCancellation',
     },
   ]);
 
@@ -190,6 +310,7 @@ export const App: React.FC = () => {
         [
           'CreditCardAmex',
           'CreditCardApple',
+          'CreditCardChase',
           'LoanAuto',
           'LoanStudent',
           'LoanPersonal',
@@ -197,6 +318,8 @@ export const App: React.FC = () => {
         ].includes(acc.account_type)
       ) {
         liabilitiesUsd += Math.abs(balUsd);
+        monthlyBurnUsd += minPay;
+      } else if (acc.account_type === 'UtilityRecurring' || acc.account_type === 'InsurancePolicy') {
         monthlyBurnUsd += minPay;
       } else {
         assetsUsd += balUsd;
@@ -213,7 +336,7 @@ export const App: React.FC = () => {
     monthlyBurnUsd += subDragMonthly;
 
     const netWorthUsd = assetsUsd - liabilitiesUsd;
-    const monthlyIncomeUsd = 6500;
+    const monthlyIncomeUsd = 7500;
     const monthlySurplusUsd = monthlyIncomeUsd - monthlyBurnUsd;
 
     const curve: number[] = [];

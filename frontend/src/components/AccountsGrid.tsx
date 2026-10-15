@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Account, AccountType, Currency } from '../types';
-import { Landmark, CreditCard, Car, GraduationCap, Building, Plus } from 'lucide-react';
+import { Landmark, CreditCard, Car, GraduationCap, Building, Plus, Shield, Zap, TrendingUp } from 'lucide-react';
 import { nativeBridge } from '../nativeBridge';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 
 export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAddAccount }) => {
   const [showAddModal, setShowAddModal] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'us' | 'india'>('all');
+  const [filter, setFilter] = useState<'all' | 'us' | 'india' | 'bills'>('all');
 
   // Form state
   const [name, setName] = useState('');
@@ -42,6 +42,7 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
     switch (type) {
       case 'CreditCardAmex':
       case 'CreditCardApple':
+      case 'CreditCardChase':
         return <CreditCard className="w-4 h-4 text-amber-400" />;
       case 'LoanAuto':
         return <Car className="w-4 h-4 text-rose-400" />;
@@ -53,6 +54,14 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
       case 'IndianPPF':
       case 'IndianEPF':
         return <Building className="w-4 h-4 text-emerald-400" />;
+      case 'InsurancePolicy':
+        return <Shield className="w-4 h-4 text-blue-400" />;
+      case 'UtilityRecurring':
+        return <Zap className="w-4 h-4 text-amber-300" />;
+      case 'InvestmentStock':
+      case 'InvestmentMutualFund':
+      case 'InvestmentCrypto':
+        return <TrendingUp className="w-4 h-4 text-emerald-400" />;
       default:
         return <Landmark className="w-4 h-4 text-vault-cyan" />;
     }
@@ -62,6 +71,7 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
     return [
       'CreditCardAmex',
       'CreditCardApple',
+      'CreditCardChase',
       'LoanAuto',
       'LoanStudent',
       'LoanPersonal',
@@ -70,8 +80,9 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
   };
 
   const filteredAccounts = accounts.filter((a) => {
-    if (filter === 'us') return a.currency === 'USD';
-    if (filter === 'india') return a.currency === 'INR';
+    if (filter === 'us') return a.currency === 'USD' && a.account_type !== 'UtilityRecurring' && a.account_type !== 'InsurancePolicy';
+    if (filter === 'india') return a.currency === 'INR' && a.account_type !== 'UtilityRecurring';
+    if (filter === 'bills') return a.account_type === 'UtilityRecurring' || a.account_type === 'InsurancePolicy';
     return true;
   });
 
@@ -108,13 +119,13 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            Accounts, Cards & Liabilities
+            Accounts, Cards, Loans & Bills
             <span className="text-xs px-2 py-0.5 rounded-full bg-vault-700 text-slate-300">
               {accounts.length}
             </span>
           </h2>
           <p className="text-xs text-slate-400">
-            Real-time balance across US Banking, Apple Card, Amex, Indian Mutual Funds & LIC
+            Real-time balance across Chase, PNC, Toyota Finance, HDFC Home Loan, Progressive, Robinhood, CAMS & Utilities
           </p>
         </div>
 
@@ -137,6 +148,12 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
               className={`px-2.5 py-1 rounded-lg ${filter === 'india' ? 'bg-vault-700 text-white' : 'text-slate-400'}`}
             >
               🇮🇳 India
+            </button>
+            <button
+              onClick={() => setFilter('bills')}
+              className={`px-2.5 py-1 rounded-lg ${filter === 'bills' ? 'bg-vault-700 text-white font-bold' : 'text-slate-400'}`}
+            >
+              ⚡ Bills & Insurance
             </button>
           </div>
 

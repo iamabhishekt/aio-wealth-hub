@@ -13,6 +13,7 @@ pub enum AccountType {
     CashSavings,
     CreditCardAmex,
     CreditCardApple,
+    CreditCardChase,
     LoanAuto,
     LoanStudent,
     LoanPersonal,
@@ -23,6 +24,8 @@ pub enum AccountType {
     IndianLICPolicy,
     IndianPPF,
     IndianEPF,
+    InsurancePolicy,
+    UtilityRecurring,
     SplitwiseNetBalance,
 }
 
@@ -56,7 +59,7 @@ pub struct Transaction {
 pub struct Subscription {
     pub id: String,
     pub service_name: String,
-    pub source: String, // e.g. "Google Play", "Apple App Store", "Direct"
+    pub source: String, // e.g. "Google Play", "Apple App Store", "Direct", "Jio/Hotstar", "Netflix India"
     pub cost_per_cycle: f64,
     pub currency: Currency,
     pub cycle: String, // "Monthly", "Annual"
@@ -67,7 +70,7 @@ pub struct Subscription {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LifeInsurancePolicy {
     pub policy_number: String,
-    pub insurer: String, // e.g. "LIC of India", "HDFC Life"
+    pub insurer: String, // e.g. "LIC of India", "Progressive", "HDFC Life"
     pub policy_name: String,
     pub sum_assured_inr: f64,
     pub annual_premium_inr: f64,
