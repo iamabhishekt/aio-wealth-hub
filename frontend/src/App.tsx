@@ -358,6 +358,7 @@ export const App: React.FC = () => {
 
             <TransactionsTable
               transactions={transactions}
+              accounts={accounts}
               currency={currency}
               fxRate={DEFAULT_FX_RATE}
             />
@@ -390,6 +391,7 @@ export const App: React.FC = () => {
         {activeTab === 'transactions' && (
           <TransactionsTable
             transactions={transactions}
+            accounts={accounts}
             currency={currency}
             fxRate={DEFAULT_FX_RATE}
           />
