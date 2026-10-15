@@ -70,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/parse/apple-card", post(parse_apple_card))
         .route("/api/parse/amex", post(parse_amex))
         .route("/api/connectors/splitwise/sync", post(sync_splitwise))
+        .route("/api/connectors/splitwise/details", get(get_splitwise_details))
         .route("/api/sync/status", get(sync_status_handler))
         .route("/api/sync/trigger", post(sync_trigger_handler))
         .route("/api/transactions", get(list_transactions))
@@ -180,22 +181,27 @@ async fn parse_amex(
 #[derive(Serialize)]
 struct SplitwiseSyncResponse {
     net_balance_usd: f64,
+    total_owed_to_you: f64,
+    total_you_owe: f64,
+    friends: Vec<SplitwiseFriendBalance>,
+    recent_expenses: Vec<SplitwiseExpenseItem>,
     status: String,
 }
 
-async fn sync_splitwise(
+async fn get_splitwise_details(
     State(state): State<AppState>,
-    Json(req): Json<SplitwiseSyncRequest>,
 ) -> Result<Json<SplitwiseSyncResponse>, StatusCode> {
-    let connector = SplitwiseConnector::new(req.api_key);
-    match connector.fetch_net_balance().await {
-        Ok(balance) => {
+    let key = std::env::var("SPLITWISE_API_KEY")
+        .unwrap_or_else(|_| "YVzYyTkZdzuH5QpAaik8HQxQhqM1DhpqcCRqlbaQ".to_string());
+    let connector = SplitwiseConnector::new(key);
+    match connector.fetch_full_details().await {
+        Ok(details) => {
             let account = Account {
                 id: "splitwise-net".to_string(),
                 name: "Splitwise Net Balance".to_string(),
                 account_type: AccountType::SplitwiseNetBalance,
                 currency: Currency::USD,
-                balance,
+                balance: details.net_balance_usd,
                 apr: None,
                 monthly_min_payment: None,
                 institution: "Splitwise".to_string(),
@@ -203,7 +209,46 @@ async fn sync_splitwise(
             };
             let _ = state.db.upsert_account(&account);
             Ok(Json(SplitwiseSyncResponse {
-                net_balance_usd: balance,
+                net_balance_usd: details.net_balance_usd,
+                total_owed_to_you: details.total_owed_to_you,
+                total_you_owe: details.total_you_owe,
+                friends: details.friends,
+                recent_expenses: details.recent_expenses,
+                status: "synced".to_string(),
+            }))
+        }
+        Err(e) => {
+            eprintln!("Splitwise get details failed: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn sync_splitwise(
+    State(state): State<AppState>,
+    Json(req): Json<SplitwiseSyncRequest>,
+) -> Result<Json<SplitwiseSyncResponse>, StatusCode> {
+    let connector = SplitwiseConnector::new(req.api_key);
+    match connector.fetch_full_details().await {
+        Ok(details) => {
+            let account = Account {
+                id: "splitwise-net".to_string(),
+                name: "Splitwise Net Balance".to_string(),
+                account_type: AccountType::SplitwiseNetBalance,
+                currency: Currency::USD,
+                balance: details.net_balance_usd,
+                apr: None,
+                monthly_min_payment: None,
+                institution: "Splitwise".to_string(),
+                updated_at: chrono::Utc::now(),
+            };
+            let _ = state.db.upsert_account(&account);
+            Ok(Json(SplitwiseSyncResponse {
+                net_balance_usd: details.net_balance_usd,
+                total_owed_to_you: details.total_owed_to_you,
+                total_you_owe: details.total_you_owe,
+                friends: details.friends,
+                recent_expenses: details.recent_expenses,
                 status: "synced".to_string(),
             }))
         }

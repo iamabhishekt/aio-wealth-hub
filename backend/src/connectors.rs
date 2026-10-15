@@ -3,6 +3,36 @@ use anyhow::Result;
 use chrono::Utc;
 use serde_json::Value;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SplitwiseFriendBalance {
+    pub id: i64,
+    pub name: String,
+    pub balance: f64,
+    pub currency: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SplitwiseExpenseItem {
+    pub id: i64,
+    pub description: String,
+    pub cost: f64,
+    pub currency: String,
+    pub date: String,
+    pub created_by: String,
+    pub is_payment: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SplitwiseFullDetails {
+    pub net_balance_usd: f64,
+    pub total_owed_to_you: f64,
+    pub total_you_owe: f64,
+    pub friends: Vec<SplitwiseFriendBalance>,
+    pub recent_expenses: Vec<SplitwiseExpenseItem>,
+}
+
 pub struct SplitwiseConnector {
     pub api_key: String,
 }
@@ -14,6 +44,12 @@ impl SplitwiseConnector {
 
     /// Splitwise API endpoint: GET /api/v3.0/get_friends
     pub async fn fetch_net_balance(&self) -> Result<f64> {
+        let details = self.fetch_full_details().await?;
+        Ok(details.net_balance_usd)
+    }
+
+    /// Fetch complete friend breakdown and recent expense stream
+    pub async fn fetch_full_details(&self) -> Result<SplitwiseFullDetails> {
         let client = reqwest::Client::new();
         let res = client
             .get("https://secure.splitwise.com/api/v3.0/get_friends")
@@ -28,20 +64,93 @@ impl SplitwiseConnector {
 
         let json: Value = res.json().await?;
         let mut net_balance = 0.0;
+        let mut total_owed_to_you = 0.0;
+        let mut total_you_owe = 0.0;
+        let mut friend_balances = Vec::new();
+
         if let Some(friends) = json["friends"].as_array() {
             for friend in friends {
+                let id = friend["id"].as_i64().unwrap_or(0);
+                let first_name = friend["first_name"].as_str().unwrap_or("Friend");
+                let last_name = friend["last_name"].as_str().unwrap_or("");
+                let full_name = if last_name.trim().is_empty() {
+                    first_name.to_string()
+                } else {
+                    format!("{} {}", first_name, last_name)
+                };
+
                 if let Some(balances) = friend["balance"].as_array() {
                     for b in balances {
                         if let Some(amt_str) = b["amount"].as_str() {
                             if let Ok(amt) = amt_str.parse::<f64>() {
-                                net_balance += amt;
+                                if amt.abs() > 0.001 {
+                                    let cur = b["currency_code"].as_str().unwrap_or("USD").to_string();
+                                    net_balance += amt;
+                                    if amt > 0.0 {
+                                        total_owed_to_you += amt;
+                                    } else {
+                                        total_you_owe += amt.abs();
+                                    }
+                                    friend_balances.push(SplitwiseFriendBalance {
+                                        id,
+                                        name: full_name.clone(),
+                                        balance: amt,
+                                        currency: cur,
+                                    });
+                                }
                             }
                         }
                     }
                 }
             }
         }
-        Ok(net_balance)
+
+        // Sort: highest money owed to you first, then what you owe
+        friend_balances.sort_by(|a, b| b.balance.partial_cmp(&a.balance).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Fetch recent expenses
+        let mut recent_expenses = Vec::new();
+        if let Ok(exp_res) = client
+            .get("https://secure.splitwise.com/api/v3.0/get_expenses?limit=15")
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("User-Agent", "AIO-Wealth-Hub/1.0")
+            .send()
+            .await
+        {
+            if exp_res.status().is_success() {
+                if let Ok(exp_json) = exp_res.json::<Value>().await {
+                    if let Some(expenses) = exp_json["expenses"].as_array() {
+                        for exp in expenses {
+                            let id = exp["id"].as_i64().unwrap_or(0);
+                            let description = exp["description"].as_str().unwrap_or("Expense").to_string();
+                            let cost = exp["cost"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                            let currency = exp["currency_code"].as_str().unwrap_or("USD").to_string();
+                            let date = exp["date"].as_str().unwrap_or("").to_string();
+                            let created_by = exp["created_by"]["first_name"].as_str().unwrap_or("User").to_string();
+                            let is_payment = exp["payment"].as_bool().unwrap_or(false);
+
+                            recent_expenses.push(SplitwiseExpenseItem {
+                                id,
+                                description,
+                                cost,
+                                currency,
+                                date,
+                                created_by,
+                                is_payment,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(SplitwiseFullDetails {
+            net_balance_usd: (net_balance * 100.0).round() / 100.0,
+            total_owed_to_you: (total_owed_to_you * 100.0).round() / 100.0,
+            total_you_owe: (total_you_owe * 100.0).round() / 100.0,
+            friends: friend_balances,
+            recent_expenses,
+        })
     }
 }
 
