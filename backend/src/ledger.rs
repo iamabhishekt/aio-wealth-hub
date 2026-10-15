@@ -1,4 +1,4 @@
-use crate::models::{Account, AccountType, Currency, Subscription};
+use crate::models::{Account, AccountType, Currency, EmailAccountConfig, Subscription};
 use anyhow::Result;
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -65,6 +65,17 @@ impl LedgerDb {
                 cycle TEXT NOT NULL,
                 next_renewal TEXT NOT NULL,
                 status TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS email_accounts (
+                id TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                email TEXT NOT NULL,
+                app_password TEXT NOT NULL,
+                server TEXT NOT NULL,
+                port INTEGER NOT NULL,
+                enabled INTEGER NOT NULL,
+                last_synced_at TEXT
             );
             "#,
         )?;
@@ -209,5 +220,73 @@ impl LedgerDb {
             list.push(r?);
         }
         Ok(list)
+    }
+
+    pub fn upsert_email_account(&self, cfg: &EmailAccountConfig) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"
+            INSERT INTO email_accounts (id, label, email, app_password, server, port, enabled, last_synced_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            ON CONFLICT(id) DO UPDATE SET
+                label = excluded.label,
+                email = excluded.email,
+                app_password = excluded.app_password,
+                server = excluded.server,
+                port = excluded.port,
+                enabled = excluded.enabled,
+                last_synced_at = excluded.last_synced_at;
+            "#,
+            params![
+                cfg.id,
+                cfg.label,
+                cfg.email,
+                cfg.app_password,
+                cfg.server,
+                cfg.port,
+                if cfg.enabled { 1 } else { 0 },
+                cfg.last_synced_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_email_accounts(&self) -> Result<Vec<EmailAccountConfig>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, label, email, app_password, server, port, enabled, last_synced_at FROM email_accounts")?;
+        let rows = stmt.query_map([], |row| {
+            let enabled_int: i32 = row.get(6)?;
+            Ok(EmailAccountConfig {
+                id: row.get(0)?,
+                label: row.get(1)?,
+                email: row.get(2)?,
+                app_password: row.get(3)?,
+                server: row.get(4)?,
+                port: row.get(5)?,
+                enabled: enabled_int == 1,
+                last_synced_at: row.get(7)?,
+            })
+        })?;
+
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
+    }
+
+    pub fn delete_email_account(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM email_accounts WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn update_email_synced_at(&self, id: &str, timestamp: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE email_accounts SET last_synced_at = ?1 WHERE id = ?2",
+            params![timestamp, id],
+        )?;
+        Ok(())
     }
 }

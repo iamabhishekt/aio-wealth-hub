@@ -1,9 +1,9 @@
 use aio_wealth_core::*;
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -46,7 +46,11 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| SyncDaemon::default_hot_folder());
     let splitwise_key = std::env::var("SPLITWISE_API_KEY").ok();
 
-    let daemon = SyncDaemon::new(hot_folder.clone(), splitwise_key);
+    let daemon = SyncDaemon::new(
+        hot_folder.clone(),
+        splitwise_key,
+        std::path::PathBuf::from(&db_path),
+    );
 
     // Spawn automated background scheduler (runs twice per day, every 12h)
     daemon.clone().spawn_background_scheduler(db.clone());
@@ -68,6 +72,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/connectors/splitwise/sync", post(sync_splitwise))
         .route("/api/sync/status", get(sync_status_handler))
         .route("/api/sync/trigger", post(sync_trigger_handler))
+        .route("/api/email-accounts", get(list_email_accounts).post(upsert_email_account))
+        .route("/api/email-accounts/:id", delete(delete_email_account))
+        .route("/api/email-accounts/test", post(test_email_account))
         .layer(cors)
         .with_state(state);
 
@@ -224,3 +231,135 @@ async fn sync_trigger_handler(State(state): State<AppState>) -> Result<Json<Sync
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
+
+async fn list_email_accounts(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<EmailAccountConfig>>, StatusCode> {
+    let mut accounts = state
+        .db
+        .get_email_accounts()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Mask passwords before returning to client UI
+    for acc in accounts.iter_mut() {
+        if !acc.app_password.is_empty() {
+            acc.app_password = "••••••••••••••••".to_string();
+        }
+    }
+    Ok(Json(accounts))
+}
+
+async fn upsert_email_account(
+    State(state): State<AppState>,
+    Json(mut payload): Json<EmailAccountConfig>,
+) -> Result<StatusCode, StatusCode> {
+    // If the frontend sent masked password, preserve the existing one in DB
+    if payload.app_password == "••••••••••••••••" {
+        if let Ok(existing) = state.db.get_email_accounts() {
+            if let Some(found) = existing.into_iter().find(|a| a.id == payload.id) {
+                payload.app_password = found.app_password;
+            }
+        }
+    }
+
+    state
+        .db
+        .upsert_email_account(&payload)
+        .map(|_| StatusCode::OK)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+async fn delete_email_account(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, StatusCode> {
+    state
+        .db
+        .delete_email_account(&id)
+        .map(|_| StatusCode::OK)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+#[derive(Deserialize)]
+struct TestEmailRequest {
+    id: Option<String>,
+    server: Option<String>,
+    port: Option<u16>,
+    email: String,
+    app_password: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct TestEmailResponse {
+    success: bool,
+    message: String,
+}
+
+async fn test_email_account(
+    State(state): State<AppState>,
+    Json(req): Json<TestEmailRequest>,
+) -> Result<Json<TestEmailResponse>, StatusCode> {
+    let server = req.server.unwrap_or_else(|| "imap.gmail.com".to_string());
+    let port = req.port.unwrap_or(993);
+
+    // Resolve password if masked or omitted
+    let mut password = req.app_password.unwrap_or_default();
+    if password == "••••••••••••••••" || password.is_empty() {
+        if let Ok(accounts) = state.db.get_email_accounts() {
+            if let Some(target) = accounts.into_iter().find(|a| {
+                req.id.as_deref() == Some(&a.id) || a.email.eq_ignore_ascii_case(&req.email)
+            }) {
+                password = target.app_password;
+            }
+        }
+    }
+
+    if password.is_empty() {
+        return Ok(Json(TestEmailResponse {
+            success: false,
+            message: "App password is required for connection testing.".to_string(),
+        }));
+    }
+
+    let py_script = std::env::var("IMAP_FETCHER_SCRIPT")
+        .unwrap_or_else(|_| "scripts/fetch_statements_imap.py".to_string());
+
+    let output = tokio::process::Command::new("python3")
+        .arg(&py_script)
+        .arg("--test")
+        .arg("--server")
+        .arg(&server)
+        .arg("--port")
+        .arg(port.to_string())
+        .arg("--email")
+        .arg(&req.email)
+        .arg("--password")
+        .arg(&password)
+        .arg("--json")
+        .output()
+        .await;
+
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if let Ok(resp) = serde_json::from_str::<TestEmailResponse>(stdout.trim()) {
+                Ok(Json(resp))
+            } else {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                Ok(Json(TestEmailResponse {
+                    success: out.status.success(),
+                    message: if out.status.success() {
+                        "Connection test succeeded.".to_string()
+                    } else {
+                        format!("Connection failed: {}", stderr.trim())
+                    },
+                }))
+            }
+        }
+        Err(e) => Ok(Json(TestEmailResponse {
+            success: false,
+            message: format!("Failed to execute test runner: {}", e),
+        })),
+    }
+}
+

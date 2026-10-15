@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Clock, FolderSync, CheckCircle2, Sparkles, Terminal } from 'lucide-react';
 import { nativeBridge } from '../nativeBridge';
+import { EmailAccountsManager } from './EmailAccountsManager';
 
 interface SyncStatus {
   status: string;
@@ -147,17 +148,21 @@ export const AutomatedSyncCard: React.FC = () => {
         </div>
       </div>
 
+      {/* Multi-Gmail & IMAP Connected Accounts Section */}
+      <div className="pt-2 border-t border-vault-800/80">
+        <EmailAccountsManager />
+      </div>
+
       {/* 1-Time Setup Accordion */}
       {showGuide && (
         <div className="p-4 rounded-xl bg-vault-950 border border-vault-700/80 space-y-3 text-xs text-slate-300 animate-fadeIn">
           <h4 className="font-bold text-white flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-vault-gold" />
-            How to configure 1-Time Zero-Cost Automatic Sync:
+            Zero-Cost Automated Sync Architecture:
           </h4>
           <ol className="list-decimal list-inside space-y-2 text-slate-400">
             <li>
-              <strong className="text-slate-200">Email Statement Fetcher (IMAP)</strong>: Run{' '}
-              <code className="text-vault-cyan font-mono">./scripts/setup_daily_cron.sh</code> on your Mac. Set your email App Password once in your environment. It auto-fetches incoming bills & e-statements at 08:00 & 20:00.
+              <strong className="text-slate-200">Multiple Gmail Inboxes</strong>: Connect your US personal and Indian financial Gmails using the form above. Everything is stored locally in your SQLite vault & hardware Keychain. The background daemon runs twice a day (08:00 & 20:00) pulling statements for Chase, PNC, Amex, Toyota, HDFC, Progressive, Utilities, and CAMS e-CAS without exporting any environment variables.
             </li>
             <li>
               <strong className="text-slate-200">Apple Card Real-Time Tap Sync</strong>: In iPhone{' '}
@@ -165,7 +170,7 @@ export const AutomatedSyncCard: React.FC = () => {
             </li>
             <li>
               <strong className="text-slate-200">CAMS Indian Mutual Funds e-CAS</strong>: Schedule monthly/weekly e-CAS delivery on{' '}
-              <em>mailback.camsonline.com</em> to your email address. The fetcher decrypts and updates Nippon & CAMS holdings automatically.
+              <em>mailback.camsonline.com</em> to your connected email. The fetcher decrypts and updates Nippon & CAMS holdings automatically.
             </li>
             <li>
               <strong className="text-slate-200">Splitwise</strong>: Save your free personal API key once in the Splitwise tab. The background daemon auto-pulls unsettled balances twice every day.

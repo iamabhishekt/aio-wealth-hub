@@ -22,16 +22,18 @@ pub struct SyncReport {
 pub struct SyncDaemon {
     pub hot_folder: PathBuf,
     pub splitwise_api_key: Option<String>,
+    pub db_path: PathBuf,
 }
 
 impl SyncDaemon {
-    pub fn new(hot_folder: PathBuf, splitwise_api_key: Option<String>) -> Self {
+    pub fn new(hot_folder: PathBuf, splitwise_api_key: Option<String>, db_path: PathBuf) -> Self {
         // Ensure hot folder and processed subfolder exist
         let processed = hot_folder.join("processed");
         let _ = fs::create_dir_all(&processed);
         Self {
             hot_folder,
             splitwise_api_key,
+            db_path,
         }
     }
 
@@ -43,6 +45,32 @@ impl SyncDaemon {
 
     /// Single execution run: scans hot folder for statements and syncs Splitwise
     pub async fn run_sync_cycle(&self, db: &LedgerDb) -> Result<SyncReport> {
+        // Step 1: If any email accounts are enabled, run automated IMAP statement fetcher
+        if let Ok(accounts) = db.get_email_accounts() {
+            let enabled_count = accounts.iter().filter(|a| a.enabled).count();
+            if enabled_count > 0 {
+                println!(
+                    "[aio-wealth-daemon] Triggering automated IMAP fetch for {} enabled account(s)...",
+                    enabled_count
+                );
+                let py_script = std::env::var("IMAP_FETCHER_SCRIPT")
+                    .unwrap_or_else(|_| "scripts/fetch_statements_imap.py".to_string());
+
+                let res = tokio::process::Command::new("python3")
+                    .arg(&py_script)
+                    .arg("--db")
+                    .arg(&self.db_path)
+                    .arg("--hot-folder")
+                    .arg(&self.hot_folder)
+                    .output()
+                    .await;
+
+                if let Err(e) = res {
+                    eprintln!("[aio-wealth-daemon] Note: Automated IMAP fetch script invocation skipped: {}", e);
+                }
+            }
+        }
+
         let mut files_scanned = 0;
         let mut total_imported = 0;
 

@@ -92,4 +92,45 @@ mod tests {
         assert_eq!(txs[1].merchant, "Uber");
         assert_eq!(txs[1].amount, 18.25);
     }
+
+    #[test]
+    fn test_email_accounts_crud() {
+        let db = LedgerDb::new_in_memory().unwrap();
+        let acc1 = EmailAccountConfig {
+            id: "gmail-us".to_string(),
+            label: "US Personal Gmail".to_string(),
+            email: "abhishek.us@gmail.com".to_string(),
+            app_password: "abcd efgh ijkl mnop".to_string(),
+            server: "imap.gmail.com".to_string(),
+            port: 993,
+            enabled: true,
+            last_synced_at: None,
+        };
+        let acc2 = EmailAccountConfig {
+            id: "gmail-in".to_string(),
+            label: "India Financial Gmail".to_string(),
+            email: "abhishek.india@gmail.com".to_string(),
+            app_password: "qrst uvwx yzab cdef".to_string(),
+            server: "imap.gmail.com".to_string(),
+            port: 993,
+            enabled: true,
+            last_synced_at: None,
+        };
+
+        db.upsert_email_account(&acc1).unwrap();
+        db.upsert_email_account(&acc2).unwrap();
+
+        let accounts = db.get_email_accounts().unwrap();
+        assert_eq!(accounts.len(), 2);
+
+        db.update_email_synced_at("gmail-us", "2026-10-14T21:00:00Z").unwrap();
+        let updated = db.get_email_accounts().unwrap();
+        let us = updated.into_iter().find(|a| a.id == "gmail-us").unwrap();
+        assert_eq!(us.last_synced_at, Some("2026-10-14T21:00:00Z".to_string()));
+
+        db.delete_email_account("gmail-in").unwrap();
+        let remaining = db.get_email_accounts().unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, "gmail-us");
+    }
 }

@@ -91,3 +91,15 @@ pub struct NetWorthSnapshot {
     pub monthly_burn_usd: f64,
     pub runway_months: f64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailAccountConfig {
+    pub id: String,
+    pub label: String,
+    pub email: String,
+    pub app_password: String,
+    pub server: String,
+    pub port: u16,
+    pub enabled: bool,
+    pub last_synced_at: Option<String>,
+}
