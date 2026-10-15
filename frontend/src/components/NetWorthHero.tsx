@@ -112,37 +112,37 @@ export const NetWorthHero: React.FC<Props> = ({
 
       {/* Three Pillars: Assets, Liabilities, Monthly Burn */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-4 rounded-xl bg-vault-950/60 border border-vault-700/60 backdrop-blur">
+        <div className="p-4 rounded-2xl bg-vault-950/60 border border-vault-800/80 backdrop-blur">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span>Total Assets</span>
             <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
           </div>
-          <div className="text-xl font-bold text-emerald-400">
+          <div className="text-xl font-bold font-mono text-emerald-400">
             {formatMoney(assets)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Cash + Stock + Indian MF & LIC</p>
+          <p className="text-[11px] text-slate-500 mt-1">Liquid Cash + Brokerage + 401(k)</p>
         </div>
 
-        <div className="p-4 rounded-xl bg-vault-950/60 border border-vault-700/60 backdrop-blur">
+        <div className="p-4 rounded-2xl bg-vault-950/60 border border-vault-800/80 backdrop-blur">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span>Total Liabilities</span>
             <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
           </div>
-          <div className="text-xl font-bold text-rose-400">
+          <div className="text-xl font-bold font-mono text-rose-400">
             {formatMoney(liabilities)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Amex + Apple Card + Auto Loan</p>
+          <p className="text-[11px] text-slate-500 mt-1">Citi, Chase, Amex, Toyota, HDFC Loan</p>
         </div>
 
-        <div className="p-4 rounded-xl bg-vault-950/60 border border-vault-700/60 backdrop-blur">
+        <div className="p-4 rounded-2xl bg-vault-950/60 border border-vault-800/80 backdrop-blur">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span>Fixed Monthly Outflow</span>
-            <span className="text-xs text-amber-400">Recurring</span>
+            <span className="text-xs text-amber-400 font-medium">Recurring</span>
           </div>
-          <div className="text-xl font-bold text-amber-400">
+          <div className="text-xl font-bold font-mono text-amber-400">
             {formatMoney(isUSD ? forecast.monthly_burn_usd : forecast.monthly_burn_usd * fxRate)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Debt service + subscriptions</p>
+          <p className="text-[11px] text-slate-500 mt-1">Debt service + living + subscriptions</p>
         </div>
       </div>
     </div>
