@@ -12,12 +12,13 @@ impl SplitwiseConnector {
         Self { api_key }
     }
 
-    /// Free Splitwise API endpoint: GET /api/v3.0/get_current_user
+    /// Splitwise API endpoint: GET /api/v3.0/get_friends
     pub async fn fetch_net_balance(&self) -> Result<f64> {
         let client = reqwest::Client::new();
         let res = client
-            .get("https://secure.splitwise.com/api/v3.0/get_current_user")
+            .get("https://secure.splitwise.com/api/v3.0/get_friends")
             .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("User-Agent", "AIO-Wealth-Hub/1.0")
             .send()
             .await?;
 
@@ -26,12 +27,21 @@ impl SplitwiseConnector {
         }
 
         let json: Value = res.json().await?;
-        // Extract balance from user.balance
-        let balance_str = json["user"]["balance"][0]["amount"]
-            .as_str()
-            .unwrap_or("0.0");
-        let balance = balance_str.parse::<f64>().unwrap_or(0.0);
-        Ok(balance)
+        let mut net_balance = 0.0;
+        if let Some(friends) = json["friends"].as_array() {
+            for friend in friends {
+                if let Some(balances) = friend["balance"].as_array() {
+                    for b in balances {
+                        if let Some(amt_str) = b["amount"].as_str() {
+                            if let Ok(amt) = amt_str.parse::<f64>() {
+                                net_balance += amt;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(net_balance)
     }
 }
 

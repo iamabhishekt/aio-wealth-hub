@@ -310,6 +310,16 @@ export const App: React.FC = () => {
         }
       })
       .catch((err) => console.log('Backend transactions fetch note:', err));
+
+    // Hydrate subscriptions from Wallos backend
+    fetch('http://localhost:8088/api/subscriptions')
+      .then((r) => r.json())
+      .then((data: Subscription[]) => {
+        if (data && Array.isArray(data) && data.length > 0) {
+          setSubscriptions(data);
+        }
+      })
+      .catch((err) => console.log('Backend subscriptions fetch note:', err));
   }, []);
 
   const handleUnlock = async () => {

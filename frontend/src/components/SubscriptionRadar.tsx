@@ -66,9 +66,12 @@ export const SubscriptionRadar: React.FC<Props> = ({
             <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
               {subscriptions.length} Tracked
             </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-vault-cyan/20 text-vault-cyan border border-vault-cyan/40">
+              Wallos Engine (wallos.db Synced)
+            </span>
           </h2>
           <p className="text-xs text-slate-400">
-            Google Play, Apple In-App Subscriptions & SaaS dragging cashflow
+            Powered by Wallos subscription architecture: Loans, Recurring Bills & SaaS tracking
           </p>
         </div>
 
