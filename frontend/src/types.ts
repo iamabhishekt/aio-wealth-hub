@@ -68,6 +68,8 @@ export interface Transaction {
   amount: number;
   currency: Currency;
   merchant: string;
+  raw_merchant?: string;
+  clean_merchant?: string;
   category: string;
   is_recurring: boolean;
   notes?: string;
@@ -132,5 +134,23 @@ export interface CategoryGroupWithCategories {
   group: CategoryGroup;
   categories: Category[];
 }
+
+export interface MerchantRule {
+  id: string;
+  pattern: string;
+  match_type: 'contains' | 'exact' | 'regex';
+  clean_merchant: string;
+  category_name: string;
+  created_at: string;
+}
+
+export interface CreateRuleRequest {
+  pattern: string;
+  match_type?: 'contains' | 'exact' | 'regex';
+  clean_merchant: string;
+  category_name: string;
+  apply_to_existing?: boolean;
+}
+
 
 

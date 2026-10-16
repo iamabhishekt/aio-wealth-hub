@@ -62,6 +62,8 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [categorySearch, setCategorySearch] = useState<string>('');
   const [isSavingCategory, setIsSavingCategory] = useState<boolean>(false);
+  const [cleanMerchantInput, setCleanMerchantInput] = useState<string>('');
+  const [createRuleCheckbox, setCreateRuleCheckbox] = useState<boolean>(true);
 
   useEffect(() => {
     fetch('http://localhost:8088/api/categories')
@@ -74,28 +76,55 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
       .catch((err) => console.log('Categories fetch note:', err));
   }, []);
 
+  const openEditModal = (tx: Transaction) => {
+    setEditingTx(tx);
+    setCleanMerchantInput(tx.clean_merchant || tx.merchant);
+    setCreateRuleCheckbox(true);
+    setCategorySearch('');
+  };
+
   const handleAssignCategory = async (txId: string, categoryName: string) => {
     try {
       setIsSavingCategory(true);
       nativeBridge.triggerHaptic('medium');
-      const res = await fetch(`http://localhost:8088/api/transactions/${txId}/category`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: categoryName }),
-      });
-      if (res.ok) {
-        nativeBridge.triggerHaptic('success');
-        nativeBridge.scheduleLocalNotification(
-          'Category Updated',
-          `Transaction updated to "${categoryName}".`
-        );
-        setEditingTx(null);
-        if (onTransactionUpdated) {
-          onTransactionUpdated();
-        }
+
+      // 1. If createRuleCheckbox is true, create a merchant rule and re-apply across ledger
+      if (createRuleCheckbox && editingTx) {
+        const pattern = editingTx.raw_merchant || editingTx.merchant;
+        const cleanMerchant = cleanMerchantInput.trim() || editingTx.merchant;
+        await fetch('http://localhost:8088/api/rules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pattern,
+            match_type: 'contains',
+            clean_merchant: cleanMerchant,
+            category_name: categoryName,
+            apply_to_existing: true,
+          }),
+        });
+      } else {
+        // Direct category update on single transaction
+        await fetch(`http://localhost:8088/api/transactions/${txId}/category`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: categoryName }),
+        });
+      }
+
+      nativeBridge.triggerHaptic('success');
+      nativeBridge.scheduleLocalNotification(
+        'Category & Rule Updated',
+        createRuleCheckbox
+          ? `Saved rule for "${cleanMerchantInput || editingTx?.merchant}" and updated matching transactions.`
+          : `Transaction updated to "${categoryName}".`
+      );
+      setEditingTx(null);
+      if (onTransactionUpdated) {
+        onTransactionUpdated();
       }
     } catch (e) {
-      console.error('Failed to update category:', e);
+      console.error('Failed to update category/rule:', e);
     } finally {
       setIsSavingCategory(false);
     }
@@ -818,8 +847,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           nativeBridge.triggerHaptic('light');
-                          setEditingTx(tx);
-                          setCategorySearch('');
+                          openEditModal(tx);
                         }}
                         className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-medium transition-all active:scale-95 cursor-pointer ${getCategoryBadge(
                           tx.category
@@ -930,8 +958,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           nativeBridge.triggerHaptic('light');
-                          setEditingTx(tx);
-                          setCategorySearch('');
+                          openEditModal(tx);
                         }}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-semibold transition-all hover:scale-105 hover:border-cyan-400 cursor-pointer ${getCategoryBadge(
                           tx.category
@@ -1050,6 +1077,34 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
               </button>
             </div>
 
+            {/* Clean Merchant Name & Rule Creation (Monarch Rule Engine) */}
+            <div className="p-3 rounded-2xl bg-vault-900/80 border border-vault-800 space-y-2.5">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Clean Merchant Name
+                </label>
+                <input
+                  type="text"
+                  value={cleanMerchantInput}
+                  onChange={(e) => setCleanMerchantInput(e.target.value)}
+                  placeholder="e.g. Amazon, Starbucks, Uber"
+                  className="w-full bg-vault-950 border border-vault-700/80 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-sans"
+                />
+              </div>
+
+              <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={createRuleCheckbox}
+                  onChange={(e) => setCreateRuleCheckbox(e.target.checked)}
+                  className="mt-0.5 rounded bg-vault-950 border-vault-700 text-cyan-500 focus:ring-0 focus:ring-offset-0 w-4 h-4 cursor-pointer shrink-0"
+                />
+                <span className="text-[11px] leading-tight text-slate-300">
+                  <strong className="text-cyan-400 font-semibold">Remember Rule:</strong> Apply this clean name & category to all past & future <code className="text-slate-400 font-mono bg-vault-950 px-1 py-0.5 rounded text-[10px]">{editingTx.raw_merchant || editingTx.merchant}</code> transactions.
+                </span>
+              </label>
+            </div>
+
             {/* Instant Search Bar */}
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -1059,7 +1114,6 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
                 value={categorySearch}
                 onChange={(e) => setCategorySearch(e.target.value)}
                 className="w-full bg-vault-900 border border-vault-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                autoFocus
               />
             </div>
 

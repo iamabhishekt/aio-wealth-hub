@@ -84,6 +84,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/fx/live", get(fx_live_handler))
         .route("/api/categories", get(list_categories).post(create_category))
         .route("/api/transactions/:id/category", put(update_transaction_category_handler))
+        .route("/api/rules", get(list_rules).post(create_rule))
+        .route("/api/rules/:id", delete(delete_rule))
+        .route("/api/rules/apply", post(apply_rules_handler))
         .layer(cors)
         .with_state(state);
 
@@ -736,6 +739,71 @@ async fn update_transaction_category_handler(
         .update_transaction_category(&id, &payload.category)
         .map(|_| StatusCode::OK)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+async fn list_rules(State(state): State<AppState>) -> Result<Json<Vec<MerchantRule>>, StatusCode> {
+    match state.db.get_merchant_rules() {
+        Ok(rules) => Ok(Json(rules)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn create_rule(
+    State(state): State<AppState>,
+    Json(req): Json<CreateRuleRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let id = format!("rule_{}", chrono::Utc::now().timestamp_micros());
+    let rule = MerchantRule {
+        id,
+        pattern: req.pattern.trim().to_string(),
+        match_type: req.match_type.unwrap_or_else(|| "contains".to_string()),
+        clean_merchant: req.clean_merchant.trim().to_string(),
+        category_name: req.category_name.trim().to_string(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    if let Err(e) = state.db.create_merchant_rule(&rule) {
+        eprintln!("Failed to save merchant rule: {}", e);
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    let mut applied_count = 0;
+    if req.apply_to_existing.unwrap_or(true) {
+        if let Ok(count) = state.db.apply_merchant_rules() {
+            applied_count = count;
+        }
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "rule": rule,
+        "applied_count": applied_count,
+    })))
+}
+
+async fn delete_rule(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    match state.db.delete_merchant_rule(&id) {
+        Ok(_) => Ok(Json(serde_json::json!({ "success": true }))),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn apply_rules_handler(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    match state.db.apply_merchant_rules() {
+        Ok(count) => Ok(Json(serde_json::json!({
+            "success": true,
+            "transactions_updated": count
+        }))),
+        Err(e) => {
+            eprintln!("Failed to apply merchant rules: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 

@@ -130,3 +130,23 @@ pub struct CategoryGroupWithCategories {
     pub categories: Vec<Category>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MerchantRule {
+    pub id: String,
+    pub pattern: String,
+    pub match_type: String, // "contains", "exact", "regex"
+    pub clean_merchant: String,
+    pub category_name: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateRuleRequest {
+    pub pattern: String,
+    pub match_type: Option<String>,
+    pub clean_merchant: String,
+    pub category_name: String,
+    pub apply_to_existing: Option<bool>,
+}
+
+

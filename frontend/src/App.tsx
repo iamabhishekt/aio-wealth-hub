@@ -17,6 +17,7 @@ import { CashflowAnalytics } from './components/CashflowAnalytics';
 import { LocalRAGCopilot } from './components/LocalRAGCopilot';
 import { SimpleFinConnectionModal } from './components/SimpleFinConnectionModal';
 import { CategoryHierarchyManager } from './components/CategoryHierarchyManager';
+import { MonarchDashboardBento } from './components/MonarchDashboardBento';
 import { nativeBridge } from './nativeBridge';
 import {
   LayoutDashboard,
@@ -482,7 +483,21 @@ export const App: React.FC = () => {
               isRefreshing={isRefreshing}
             />
 
-            {/* 4. Virtual Card & Credit Instrument Wallet (iBanko & Apple Wallet inspired) */}
+            {/* 4. Monarch Money Inspired Bento Grid Widgets (Cashflow, Rollover Budget, Bills Due, Cleansed Feed) */}
+            <MonarchDashboardBento
+              forecast={forecast}
+              accounts={accounts}
+              transactions={transactions}
+              currency={currency}
+              fxRate={fxRate}
+              onNavigateTab={(tab) => {
+                setActiveTab(tab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onOpenSimpleFin={() => setShowSimpleFinModal(true)}
+            />
+
+            {/* 5. Virtual Card & Credit Instrument Wallet (iBanko & Apple Wallet inspired) */}
             <VirtualCardWallet
               accounts={accounts}
               currency={currency}

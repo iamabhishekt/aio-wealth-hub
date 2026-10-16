@@ -1,4 +1,4 @@
-use crate::models::{Account, AccountType, Category, CategoryGroup, CategoryGroupWithCategories, Currency, EmailAccountConfig, Subscription, Transaction};
+use crate::models::{Account, AccountType, Category, CategoryGroup, CategoryGroupWithCategories, Currency, EmailAccountConfig, MerchantRule, Subscription, Transaction};
 use anyhow::Result;
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -95,6 +95,15 @@ impl LedgerDb {
                 budget_amount REAL,
                 FOREIGN KEY(group_id) REFERENCES category_groups(id)
             );
+
+            CREATE TABLE IF NOT EXISTS merchant_rules (
+                id TEXT PRIMARY KEY,
+                pattern TEXT NOT NULL,
+                match_type TEXT NOT NULL,
+                clean_merchant TEXT NOT NULL,
+                category_name TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
             "#,
         )?;
 
@@ -102,6 +111,12 @@ impl LedgerDb {
         let count: i64 = conn.query_row("SELECT count(*) FROM category_groups", [], |row| row.get(0))?;
         if count == 0 {
             Self::seed_default_categories(&conn)?;
+        }
+
+        // Seed default merchant cleansing rules if empty
+        let rules_count: i64 = conn.query_row("SELECT count(*) FROM merchant_rules", [], |row| row.get(0)).unwrap_or(0);
+        if rules_count == 0 {
+            Self::seed_default_rules(&conn)?;
         }
 
         Ok(())
@@ -518,5 +533,103 @@ impl LedgerDb {
             params![category, tx_id],
         )?;
         Ok(())
+    }
+
+    fn seed_default_rules(conn: &Connection) -> Result<()> {
+        let now = Utc::now().to_rfc3339();
+        let default_rules = vec![
+            ("rule_amazon", "AMZN", "contains", "Amazon", "Shopping"),
+            ("rule_bluebottle", "BLUE BOTTLE", "contains", "Blue Bottle Coffee", "Coffee & Cafes"),
+            ("rule_starbucks", "STARBUCKS", "contains", "Starbucks", "Coffee & Cafes"),
+            ("rule_uber", "UBER", "contains", "Uber", "Rideshare & Transit"),
+            ("rule_lyft", "LYFT", "contains", "Lyft", "Rideshare & Transit"),
+            ("rule_chase_payment", "CHASE CREDIT CRD", "contains", "Chase Card Payment", "Credit Card Payment"),
+            ("rule_toyota", "TOYOTA", "contains", "Toyota Financial Services", "Auto Loan Payment"),
+            ("rule_paychex", "PAYCHEX", "contains", "Employer Payroll", "Paycheck & Bonus"),
+            ("rule_progressive", "PROGRESSIVE", "contains", "Progressive Insurance", "Auto & Home Insurance"),
+            ("rule_verizon", "VERIZON", "contains", "Verizon Fios", "Internet & Telecom"),
+            ("rule_jio", "JIO", "contains", "Jio Mobile Telecom", "Internet & Telecom"),
+            ("rule_pseg", "PSEG", "contains", "PSE&G Electric & Gas", "Utilities & Energy"),
+            ("rule_hdfc", "HDFC", "contains", "HDFC Bank NRI Home Loan", "HDFC NRI Home Loan"),
+            ("rule_remitly", "REMITLY", "contains", "Remitly Global Transfer", "India Remittance"),
+            ("rule_subway", "SUBWAY", "contains", "Subway", "Dining Out"),
+            ("rule_traderjoes", "TRADER JOE", "contains", "Trader Joe's", "Groceries"),
+            ("rule_wholefoods", "WHOLEFDS", "contains", "Whole Foods Market", "Groceries"),
+        ];
+
+        for (id, pattern, mtype, clean, cat) in default_rules {
+            conn.execute(
+                "INSERT OR IGNORE INTO merchant_rules (id, pattern, match_type, clean_merchant, category_name, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![id, pattern, mtype, clean, cat, now],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn get_merchant_rules(&self) -> Result<Vec<MerchantRule>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, pattern, match_type, clean_merchant, category_name, created_at FROM merchant_rules ORDER BY pattern ASC")?;
+        let rows = stmt.query_map([], |row| {
+            Ok(MerchantRule {
+                id: row.get(0)?,
+                pattern: row.get(1)?,
+                match_type: row.get(2)?,
+                clean_merchant: row.get(3)?,
+                category_name: row.get(4)?,
+                created_at: row.get(5)?,
+            })
+        })?;
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
+    }
+
+    pub fn create_merchant_rule(&self, rule: &MerchantRule) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO merchant_rules (id, pattern, match_type, clean_merchant, category_name, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(id) DO UPDATE SET pattern=excluded.pattern, match_type=excluded.match_type, clean_merchant=excluded.clean_merchant, category_name=excluded.category_name",
+            params![rule.id, rule.pattern, rule.match_type, rule.clean_merchant, rule.category_name, rule.created_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_merchant_rule(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM merchant_rules WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn apply_merchant_rules(&self) -> Result<usize> {
+        let rules = self.get_merchant_rules()?;
+        let conn = self.conn.lock().unwrap();
+        let mut updated_count = 0;
+
+        for rule in rules {
+            let pat = rule.pattern.to_uppercase();
+            let mut stmt = conn.prepare("SELECT id, merchant FROM transactions")?;
+            let txs: Vec<(String, String)> = stmt.query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })?.filter_map(|r| r.ok()).collect();
+
+            for (tx_id, merchant) in txs {
+                let m_upper = merchant.to_uppercase();
+                let matches = match rule.match_type.as_str() {
+                    "exact" => m_upper == pat,
+                    _ => m_upper.contains(&pat),
+                };
+
+                if matches {
+                    conn.execute(
+                        "UPDATE transactions SET merchant = ?1, category = ?2 WHERE id = ?3",
+                        params![rule.clean_merchant, rule.category_name, tx_id],
+                    )?;
+                    updated_count += 1;
+                }
+            }
+        }
+        Ok(updated_count)
     }
 }

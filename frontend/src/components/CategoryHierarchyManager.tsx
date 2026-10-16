@@ -32,9 +32,22 @@ import {
   Globe,
   ArrowRightLeft,
   Tag,
-  Pencil
+  Pencil,
+  Sparkles,
+  Trash2,
+  Play,
+  CheckCircle2,
 } from 'lucide-react';
 import { nativeBridge } from '../nativeBridge';
+
+export interface MerchantRule {
+  id: string;
+  pattern: string;
+  match_type: string;
+  clean_merchant: string;
+  category_name: string;
+  created_at: string;
+}
 
 interface Props {
   currency: Currency;
@@ -42,16 +55,38 @@ interface Props {
 }
 
 export const CategoryHierarchyManager: React.FC<Props> = ({ currency, fxRate }) => {
+  const [activeTab, setActiveTab] = useState<'taxonomy' | 'rules'>('taxonomy');
   const [hierarchy, setHierarchy] = useState<CategoryGroupWithCategories[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editBudgetAmount, setEditBudgetAmount] = useState<string>('');
+  
+  // Merchant Rules state
+  const [rules, setRules] = useState<MerchantRule[]>([]);
+  const [isApplyingRules, setIsApplyingRules] = useState<boolean>(false);
+  const [ruleMessage, setRuleMessage] = useState<string | null>(null);
+  const [showAddRuleModal, setShowAddRuleModal] = useState<boolean>(false);
+  const [newRulePattern, setNewRulePattern] = useState<string>('');
+  const [newRuleClean, setNewRuleClean] = useState<string>('');
+  const [newRuleCategory, setNewRuleCategory] = useState<string>('Groceries');
   
   // New category creation state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [targetGroupId, setTargetGroupId] = useState<string>('grp_lifestyle');
   const [newCatName, setNewCatName] = useState<string>('');
   const [newCatBudget, setNewCatBudget] = useState<string>('');
+
+  const fetchRules = async () => {
+    try {
+      const res = await fetch('http://localhost:8088/api/rules');
+      if (res.ok) {
+        const data = await res.json();
+        setRules(data);
+      }
+    } catch (err) {
+      console.error('Failed to load merchant rules:', err);
+    }
+  };
 
   const fetchHierarchy = async () => {
     try {
@@ -70,7 +105,73 @@ export const CategoryHierarchyManager: React.FC<Props> = ({ currency, fxRate }) 
 
   useEffect(() => {
     fetchHierarchy();
+    fetchRules();
   }, []);
+
+  const handleApplyAllRules = async () => {
+    try {
+      setIsApplyingRules(true);
+      nativeBridge.triggerHaptic('medium');
+      const res = await fetch('http://localhost:8088/api/rules/apply', {
+        method: 'POST',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        nativeBridge.triggerHaptic('success');
+        setRuleMessage(`Successfully cleansed & updated ${data.transactions_updated} transactions across the ledger!`);
+        setTimeout(() => setRuleMessage(null), 5000);
+      }
+    } catch (err) {
+      console.error('Failed to apply rules:', err);
+    } finally {
+      setIsApplyingRules(false);
+    }
+  };
+
+  const handleDeleteRule = async (ruleId: string) => {
+    try {
+      nativeBridge.triggerHaptic('medium');
+      const res = await fetch(`http://localhost:8088/api/rules/${ruleId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        nativeBridge.triggerHaptic('success');
+        fetchRules();
+      }
+    } catch (err) {
+      console.error('Failed to delete rule:', err);
+    }
+  };
+
+  const handleCreateRule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRulePattern.trim() || !newRuleClean.trim()) return;
+
+    try {
+      const res = await fetch('http://localhost:8088/api/rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pattern: newRulePattern.trim(),
+          match_type: 'contains',
+          clean_merchant: newRuleClean.trim(),
+          category_name: newRuleCategory,
+          apply_to_existing: true,
+        }),
+      });
+      if (res.ok) {
+        nativeBridge.triggerHaptic('success');
+        setShowAddRuleModal(false);
+        setNewRulePattern('');
+        setNewRuleClean('');
+        fetchRules();
+        setRuleMessage(`Rule created and applied across past & future transactions!`);
+        setTimeout(() => setRuleMessage(null), 5000);
+      }
+    } catch (err) {
+      console.error('Failed to create rule:', err);
+    }
+  };
 
   const formatMoney = (valUsd: number) => {
     const isUSD = currency === 'USD';
@@ -196,13 +297,60 @@ export const CategoryHierarchyManager: React.FC<Props> = ({ currency, fxRate }) 
         </button>
       </div>
 
-      {/* Groups & Subcategories List */}
-      {loading ? (
-        <div className="py-16 text-center text-slate-400 text-xs">
-          Loading 3-tier category taxonomy...
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-2 border-b border-vault-800 pb-3">
+        <button
+          onClick={() => {
+            nativeBridge.triggerHaptic('light');
+            setActiveTab('taxonomy');
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'taxonomy'
+              ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 shadow-sm'
+              : 'text-slate-400 hover:text-white bg-vault-900/50 border border-transparent'
+          }`}
+        >
+          <FolderTree className="w-4 h-4 text-purple-400" />
+          <span>Category Taxonomy & Budgets ({hierarchy.reduce((acc, g) => acc + g.categories.length, 0)})</span>
+        </button>
+
+        <button
+          onClick={() => {
+            nativeBridge.triggerHaptic('light');
+            setActiveTab('rules');
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'rules'
+              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+              : 'text-slate-400 hover:text-white bg-vault-900/50 border border-transparent'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-cyan-400" />
+          <span>Merchant Rules & Cleanser ({rules.length} Rules Active)</span>
+        </button>
+      </div>
+
+      {ruleMessage && (
+        <div className="p-3.5 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-semibold flex items-center justify-between animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span>{ruleMessage}</span>
+          </div>
+          <button onClick={() => setRuleMessage(null)} className="text-cyan-400 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
         </div>
-      ) : (
-        <div className="space-y-5">
+      )}
+
+      {/* VIEW 1: Groups & Subcategories List */}
+      {activeTab === 'taxonomy' && (
+        <>
+          {loading ? (
+            <div className="py-16 text-center text-slate-400 text-xs">
+              Loading 3-tier category taxonomy...
+            </div>
+          ) : (
+            <div className="space-y-5">
           {hierarchy.map(({ group, categories }) => {
             const groupBudgetSum = categories.reduce(
               (acc, c) => acc + (c.budget_amount || 0),
@@ -328,8 +476,174 @@ export const CategoryHierarchyManager: React.FC<Props> = ({ currency, fxRate }) 
           })}
         </div>
       )}
+    </>
+  )}
 
-      {/* Add Custom Category Modal */}
+  {/* VIEW 2: Merchant Cleansing & Auto-Categorization Rules */}
+  {activeTab === 'rules' && (
+    <div className="space-y-6">
+      {/* Rules Action Banner */}
+      <div className="p-6 rounded-3xl bg-vault-900/60 border border-white/[0.06] shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-white tracking-tight">
+              Merchant Cleansing & Auto-Categorization Engine
+            </h3>
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+              {rules.length} Rules Active
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            Normalizes raw bank strings into clean brand names and automatically assigns standard categories.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleApplyAllRules}
+            disabled={isApplyingRules}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <Play className={`w-3.5 h-3.5 ${isApplyingRules ? 'animate-spin' : ''}`} />
+            <span>{isApplyingRules ? 'Cleansing Ledger...' : 'Re-apply All Rules'}</span>
+          </button>
+
+          <button
+            onClick={() => setShowAddRuleModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-md shadow-cyan-600/20 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Rule</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Rules Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {rules.map((rule) => (
+          <div
+            key={rule.id}
+            className="p-1 rounded-2xl bg-vault-900/40 border border-white/[0.06] hover:border-cyan-500/30 transition-all"
+          >
+            <div className="p-4 rounded-[14px] bg-[#0d1424]/90 border border-white/[0.04] space-y-3 shadow-inner">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <span className="text-[10px] font-mono uppercase text-slate-500 block">Pattern (Contains)</span>
+                  <code className="text-xs font-mono font-bold text-cyan-300 bg-vault-950 px-2 py-0.5 rounded border border-cyan-900/50">
+                    {rule.pattern}
+                  </code>
+                </div>
+                <button
+                  onClick={() => handleDeleteRule(rule.id)}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                  title="Delete rule"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-500">$\rightarrow$</span>
+                <span className="font-bold text-white truncate">{rule.clean_merchant}</span>
+              </div>
+
+              <div className="pt-2 border-t border-vault-800/80 flex items-center justify-between text-[11px]">
+                <span className="px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-300 font-medium">
+                  {rule.category_name}
+                </span>
+                <span className="text-[10px] font-mono text-slate-500">Auto-Tagged</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* Add Rule Modal */}
+  {showAddRuleModal && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in font-sans">
+      <div className="bg-vault-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-base font-bold text-white">Create Merchant Rule</h3>
+          </div>
+          <button
+            onClick={() => setShowAddRuleModal(false)}
+            className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleCreateRule} className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-400 block mb-1">
+              Raw Text Pattern to Match
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. NETFLIX, UBER *EATS, SHELL OIL"
+              value={newRulePattern}
+              onChange={(e) => setNewRulePattern(e.target.value)}
+              className="w-full bg-vault-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-400 block mb-1">
+              Clean Display Merchant Name
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Netflix, Uber Eats, Shell"
+              value={newRuleClean}
+              onChange={(e) => setNewRuleClean(e.target.value)}
+              className="w-full bg-vault-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-400 block mb-1">
+              Auto-Assign Category
+            </label>
+            <select
+              value={newRuleCategory}
+              onChange={(e) => setNewRuleCategory(e.target.value)}
+              className="w-full bg-vault-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+            >
+              {hierarchy.flatMap((g) => g.categories).map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowAddRuleModal(false)}
+              className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-750"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-xs font-bold hover:from-cyan-500 hover:to-blue-500 transition-all shadow-md shadow-cyan-600/20"
+            >
+              Save & Apply Rule
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )}
+
+  {/* Add Custom Category Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in font-sans">
           <div className="bg-vault-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
