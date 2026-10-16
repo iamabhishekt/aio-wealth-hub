@@ -112,7 +112,7 @@ export const NetWorthHero: React.FC<Props> = ({
           <span>Global Consolidated Net Worth</span>
         </div>
         <div className="flex flex-wrap items-baseline gap-2.5 sm:gap-4">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white font-mono">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white font-mono tabular-nums">
             {formatMoney(netWorth)}
           </h1>
           <span
@@ -128,7 +128,7 @@ export const NetWorthHero: React.FC<Props> = ({
             {formatMoney(Math.abs(surplus))}/mo {surplus >= 0 ? 'net surplus' : 'deficit'}
           </span>
 
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 px-2 py-0.5 rounded-md bg-vault-950/60 border border-vault-800">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 px-2.5 py-1 rounded-xl bg-vault-950/70 border border-white/[0.07]">
             <Clock className="w-3 h-3 text-cyan-400" />
             Liquid Runway: <strong className="text-white font-mono">{liquidRunwayMonths} mo</strong>
           </span>
@@ -138,38 +138,38 @@ export const NetWorthHero: React.FC<Props> = ({
       {/* Three Pillars: Assets, Liabilities, Monthly Burn (HaraPro + Copilot Bento Grid) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {/* Assets Pillar */}
-        <div className="p-5 rounded-3xl bg-vault-950/70 border border-slate-800/80 backdrop-blur hover:border-emerald-500/30 transition-all">
+        <div className="p-5 rounded-3xl bg-vault-950/80 border border-white/[0.07] backdrop-blur hover:border-emerald-500/30 transition-all card-glow">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span className="font-semibold">Total Assets</span>
+            <span className="font-semibold text-slate-300">Total Assets</span>
             <TrendingUp className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-emerald-400 mt-1">
+          <div className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-emerald-400 mt-1 tabular-nums">
             {formatMoney(assets)}
           </div>
           <p className="text-[11px] text-slate-400 mt-1">Liquid Cash + Brokerage + 401(k)</p>
         </div>
 
         {/* Liabilities Pillar */}
-        <div className="p-5 rounded-3xl bg-vault-950/70 border border-slate-800/80 backdrop-blur hover:border-rose-500/30 transition-all">
+        <div className="p-5 rounded-3xl bg-vault-950/80 border border-white/[0.07] backdrop-blur hover:border-rose-500/30 transition-all card-glow">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span className="font-semibold">Total Liabilities</span>
+            <span className="font-semibold text-slate-300">Total Liabilities</span>
             <AlertTriangle className="w-4 h-4 text-rose-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-rose-400 mt-1">
+          <div className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-rose-400 mt-1 tabular-nums">
             {formatMoney(liabilities)}
           </div>
           <p className="text-[11px] text-slate-400 mt-1">HDFC Home Loan, Toyota Auto, Cards</p>
         </div>
 
         {/* Fixed Monthly Outflow Pillar */}
-        <div className="p-5 rounded-3xl bg-vault-950/70 border border-slate-800/80 backdrop-blur sm:col-span-2 lg:col-span-1 hover:border-amber-500/30 transition-all">
+        <div className="p-5 rounded-3xl bg-vault-950/80 border border-white/[0.07] backdrop-blur sm:col-span-2 lg:col-span-1 hover:border-amber-500/30 transition-all card-glow">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span className="font-semibold">Fixed Monthly Outflow</span>
+            <span className="font-semibold text-slate-300">Fixed Monthly Outflow</span>
             <span className="text-[10px] text-amber-400 font-semibold px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20">
               Recurring
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-amber-400 mt-1">
+          <div className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-amber-400 mt-1 tabular-nums">
             {formatMoney(monthlyBurn)}
           </div>
           <p className="text-[11px] text-slate-400 mt-1">Debt service + living + subscriptions</p>

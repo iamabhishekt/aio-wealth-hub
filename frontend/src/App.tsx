@@ -234,6 +234,13 @@ export const App: React.FC = () => {
   const refreshLedger = () => {
     setIsRefreshing(true);
     nativeBridge.triggerHaptic('light');
+    fetch('http://localhost:8088/api/accounts')
+      .then((r) => r.json())
+      .then((data: Account[]) => {
+        if (Array.isArray(data)) setAccounts(data);
+      })
+      .catch((err) => console.log('Accounts fetch error:', err));
+    refreshTransactions();
     setTimeout(() => {
       setIsRefreshing(false);
     }, 600);
@@ -388,12 +395,12 @@ export const App: React.FC = () => {
                 nativeBridge.triggerHaptic('light');
                 setShowSimpleFinModal(true);
               }}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-vault-900 border border-slate-800 hover:border-cyan-500/40 text-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-vault-900 border border-slate-800 hover:border-cyan-500/40 text-xs transition-colors cursor-pointer"
               title="Open SimpleFIN Bridge Hub"
             >
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-slate-300 font-semibold font-sans">SimpleFIN</span>
-              <span className="text-[10px] text-cyan-400 font-mono">11 Connected</span>
+              <span className="text-[10px] text-cyan-400 font-mono hidden sm:inline">13 Connected</span>
             </button>
 
             {/* Live FX Badge */}
