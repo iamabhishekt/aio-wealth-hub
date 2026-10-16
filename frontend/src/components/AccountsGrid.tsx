@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Account, AccountType, Currency } from '../types';
+import { SimpleFinConnectionModal } from './SimpleFinConnectionModal';
 import {
   Landmark,
   CreditCard,
@@ -13,6 +14,7 @@ import {
   AlertTriangle,
   Globe,
   PiggyBank,
+  RefreshCw,
 } from 'lucide-react';
 import { nativeBridge } from '../nativeBridge';
 
@@ -27,6 +29,7 @@ type SkillCategory = 'all' | 'assets' | 'debts' | 'remittances' | 'us' | 'india'
 
 export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAddAccount }) => {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSimpleFinModal, setShowSimpleFinModal] = useState(false);
   const [skillCategory, setSkillCategory] = useState<SkillCategory>('all');
 
   // Form state
@@ -316,13 +319,26 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
             </button>
           </div>
 
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-vault-cyan text-vault-950 font-bold text-xs rounded-xl hover:opacity-90 transition-opacity shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Connect Account</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                nativeBridge.triggerHaptic('light');
+                setShowSimpleFinModal(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-bold text-xs rounded-xl hover:from-cyan-500 hover:to-indigo-500 transition-all shadow-md shadow-cyan-600/20 shrink-0 cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Connect SimpleFIN</span>
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-vault-900 border border-vault-800 text-slate-300 font-medium text-xs rounded-xl hover:bg-vault-800 transition-colors shrink-0"
+              title="Manual Account Entry"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Manual</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -382,19 +398,19 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
           return (
             <div
               key={acc.id}
-              className={`p-5 rounded-2xl bg-vault-950/80 border transition-all flex flex-col justify-between relative overflow-hidden backdrop-blur-xl ${
-                debt ? 'border-vault-800 hover:border-rose-500/40' : 'border-vault-800 hover:border-emerald-500/40'
+              className={`p-6 rounded-3xl bg-vault-850/80 card-glow border transition-all flex flex-col justify-between relative overflow-hidden backdrop-blur-xl ${
+                debt ? 'border-slate-800/80 hover:border-rose-500/40' : 'border-slate-800/80 hover:border-emerald-500/40'
               }`}
             >
               <div>
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2.5 rounded-xl bg-vault-900 border border-vault-800">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-2xl bg-vault-900 border border-slate-800 shadow-inner">
                       {getAccountIcon(acc.account_type)}
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-white leading-tight">
+                      <h3 className="text-sm font-bold text-white tracking-tight leading-tight font-sans">
                         {acc.name}
                       </h3>
                       <p className="text-[11px] text-slate-400 mt-0.5">{acc.institution}</p>
@@ -569,6 +585,13 @@ export const AccountsGrid: React.FC<Props> = ({ accounts, currency, fxRate, onAd
           </div>
         </div>
       )}
+
+      {/* SimpleFIN Bridge Connection Hub */}
+      <SimpleFinConnectionModal
+        isOpen={showSimpleFinModal}
+        onClose={() => setShowSimpleFinModal(false)}
+        onSyncComplete={() => window.location.reload()}
+      />
     </div>
   );
 };

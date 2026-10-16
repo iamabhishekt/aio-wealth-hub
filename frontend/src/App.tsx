@@ -14,6 +14,8 @@ import { VirtualCardWallet } from './components/VirtualCardWallet';
 import { QuickActionsBar } from './components/QuickActionsBar';
 import { AICopilotCard } from './components/AICopilotCard';
 import { CashflowAnalytics } from './components/CashflowAnalytics';
+import { LocalRAGCopilot } from './components/LocalRAGCopilot';
+import { SimpleFinConnectionModal } from './components/SimpleFinConnectionModal';
 import { nativeBridge } from './nativeBridge';
 import {
   LayoutDashboard,
@@ -31,11 +33,11 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-const DEFAULT_FX_RATE = 86.5;
-
 export const App: React.FC = () => {
   const [isLocked, setIsLocked] = useState(true);
   const [currency, setCurrency] = useState<Currency>('USD');
+  const [fxRate, setFxRate] = useState<number>(95.25);
+  const [showSimpleFinModal, setShowSimpleFinModal] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<
     | 'overview'
     | 'independence'
@@ -91,6 +93,16 @@ export const App: React.FC = () => {
         }
       })
       .catch((err) => console.log('Backend subscriptions fetch note:', err));
+
+    // Hydrate live FX rate from backend /api/fx/live
+    fetch('http://localhost:8088/api/fx/live')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.market_rate) {
+          setFxRate(data.market_rate);
+        }
+      })
+      .catch((err) => console.log('Live FX initial fetch note:', err));
   }, []);
 
   const handleUnlock = async () => {
@@ -102,6 +114,15 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleApplyFxRate = (newRate: number, providerName?: string) => {
+    setFxRate(newRate);
+    nativeBridge.triggerHaptic('success');
+    nativeBridge.scheduleLocalNotification(
+      'Exchange Rate Recalibrated',
+      `Applied ${providerName || 'Live'} rate: 1 USD = ₹${newRate.toFixed(2)}.`
+    );
+  };
+
   // Compute live forecast
   const computeForecast = (): ForecastResult => {
     let assetsUsd = 0;
@@ -109,11 +130,11 @@ export const App: React.FC = () => {
     let monthlyBurnUsd = 0;
 
     accounts.forEach((acc) => {
-      const balUsd = acc.currency === 'USD' ? acc.balance : acc.balance / DEFAULT_FX_RATE;
+      const balUsd = acc.currency === 'USD' ? acc.balance : acc.balance / fxRate;
       const minPay = acc.monthly_min_payment
         ? acc.currency === 'USD'
           ? acc.monthly_min_payment
-          : acc.monthly_min_payment / DEFAULT_FX_RATE
+          : acc.monthly_min_payment / fxRate
         : 0;
 
       if (
@@ -140,7 +161,7 @@ export const App: React.FC = () => {
 
     let subDragMonthly = 0;
     subscriptions.forEach((s) => {
-      let cost = s.currency === 'USD' ? s.cost_per_cycle : s.cost_per_cycle / DEFAULT_FX_RATE;
+      let cost = s.currency === 'USD' ? s.cost_per_cycle : s.cost_per_cycle / fxRate;
       if (s.cycle.toLowerCase().includes('annual')) cost /= 12;
       subDragMonthly += cost;
     });
@@ -160,7 +181,7 @@ export const App: React.FC = () => {
 
     return {
       current_net_worth_usd: Math.round(netWorthUsd),
-      current_net_worth_inr: Math.round(netWorthUsd * DEFAULT_FX_RATE),
+      current_net_worth_inr: Math.round(netWorthUsd * fxRate),
       total_assets_usd: Math.round(assetsUsd),
       total_liabilities_usd: Math.round(liabilitiesUsd),
       monthly_inflow_usd: monthlyIncomeUsd,
@@ -341,8 +362,28 @@ export const App: React.FC = () => {
             </button>
           </nav>
 
-          {/* Right Action Cluster: Currency Switcher & Lock Vault */}
+          {/* Right Action Cluster: Live FX, SimpleFIN Bridge, Currency Switcher & Lock Vault */}
           <div className="flex items-center gap-2">
+            {/* SimpleFIN Bridge Status Pill */}
+            <button
+              onClick={() => {
+                nativeBridge.triggerHaptic('light');
+                setShowSimpleFinModal(true);
+              }}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-vault-900 border border-slate-800 hover:border-cyan-500/40 text-xs transition-colors cursor-pointer"
+              title="Open SimpleFIN Bridge Hub"
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-slate-300 font-semibold font-sans">SimpleFIN</span>
+              <span className="text-[10px] text-cyan-400 font-mono">11 Connected</span>
+            </button>
+
+            {/* Live FX Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-vault-900 border border-slate-800 text-[11px] font-mono text-slate-300">
+              <span className="text-slate-500">Live FX:</span>
+              <span className="text-amber-400 font-bold">1$ = ₹{fxRate.toFixed(2)}</span>
+            </div>
+
             <div className="bg-vault-900 p-0.5 rounded-xl border border-vault-800 flex items-center text-xs">
               <button
                 onClick={() => {
@@ -395,10 +436,11 @@ export const App: React.FC = () => {
             {/* 1. Automated Sync Banner */}
             <AutomatedSyncCard />
 
-            {/* 2. Quick Actions Bar (iBanko & Fintrack inspired) */}
+            {/* 2. Quick Actions Bar (iBanko & Fintrack inspired with Live FX Suite) */}
             <QuickActionsBar
               currency={currency}
-              fxRate={DEFAULT_FX_RATE}
+              fxRate={fxRate}
+              onApplyFxRate={handleApplyFxRate}
               onNavigateTab={(tab) => {
                 setActiveTab(tab);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -410,7 +452,7 @@ export const App: React.FC = () => {
               forecast={forecast}
               currency={currency}
               onToggleCurrency={setCurrency}
-              fxRate={DEFAULT_FX_RATE}
+              fxRate={fxRate}
               onRefresh={refreshLedger}
               isRefreshing={isRefreshing}
             />
@@ -419,7 +461,7 @@ export const App: React.FC = () => {
             <VirtualCardWallet
               accounts={accounts}
               currency={currency}
-              fxRate={DEFAULT_FX_RATE}
+              fxRate={fxRate}
               selectedAccountId={selectedCardId}
               onSelectAccount={(accId) => {
                 setSelectedCardId(accId);
@@ -435,29 +477,32 @@ export const App: React.FC = () => {
             <AICopilotCard
               forecast={forecast}
               currency={currency}
-              fxRate={DEFAULT_FX_RATE}
+              fxRate={fxRate}
               onNavigateTab={(tab) => {
                 setActiveTab(tab);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />
 
-            {/* 6. Cashflow Inflow vs Outflow & Category Analytics (Fintrack & Twisty inspired) */}
+            {/* 6. On-Device 1B mini-cp5 Local RAG Copilot */}
+            <LocalRAGCopilot />
+
+            {/* 7. Cashflow Inflow vs Outflow & Category Analytics (Fintrack & Twisty inspired) */}
             <CashflowAnalytics
               forecast={forecast}
               currency={currency}
-              fxRate={DEFAULT_FX_RATE}
+              fxRate={fxRate}
             />
 
-            {/* 7. OpenAccountant Financial Independence (FIRE) & Debt Payoff Intelligence */}
-            <FinancialIndependencePanel currency={currency} fxRate={DEFAULT_FX_RATE} />
+            {/* 8. OpenAccountant Financial Independence (FIRE) & Debt Payoff Intelligence */}
+            <FinancialIndependencePanel currency={currency} fxRate={fxRate} />
 
-            {/* 8. Forecaster & Splitwise Bento Grid (1 col on mobile, 2 col on tablet/desktop) */}
+            {/* 9. Forecaster & Splitwise Bento Grid (1 col on mobile, 2 col on tablet/desktop) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-              <ForecasterChart forecast={forecast} currency={currency} fxRate={DEFAULT_FX_RATE} />
+              <ForecasterChart forecast={forecast} currency={currency} fxRate={fxRate} />
               <SplitwisePanel
                 currency={currency}
-                fxRate={DEFAULT_FX_RATE}
+                fxRate={fxRate}
                 onSyncSuccess={handleSplitwiseSync}
               />
             </div>
@@ -466,7 +511,7 @@ export const App: React.FC = () => {
             <AccountsGrid
               accounts={accounts}
               currency={currency}
-              fxRate={DEFAULT_FX_RATE}
+              fxRate={fxRate}
               onAddAccount={handleAddAccount}
             />
 
@@ -475,7 +520,7 @@ export const App: React.FC = () => {
               transactions={transactions}
               accounts={accounts}
               currency={currency}
-              fxRate={DEFAULT_FX_RATE}
+              fxRate={fxRate}
               selectedAccountId={selectedCardId}
             />
 
@@ -483,21 +528,21 @@ export const App: React.FC = () => {
             <SubscriptionRadar
               subscriptions={subscriptions}
               currency={currency}
-              fxRate={DEFAULT_FX_RATE}
+              fxRate={fxRate}
               onToggleStatus={handleToggleSub}
             />
           </div>
         )}
 
         {activeTab === 'independence' && (
-          <FinancialIndependencePanel currency={currency} fxRate={DEFAULT_FX_RATE} />
+          <FinancialIndependencePanel currency={currency} fxRate={fxRate} />
         )}
 
         {activeTab === 'accounts' && (
           <AccountsGrid
             accounts={accounts}
             currency={currency}
-            fxRate={DEFAULT_FX_RATE}
+            fxRate={fxRate}
             onAddAccount={handleAddAccount}
           />
         )}
@@ -507,7 +552,7 @@ export const App: React.FC = () => {
             transactions={transactions}
             accounts={accounts}
             currency={currency}
-            fxRate={DEFAULT_FX_RATE}
+            fxRate={fxRate}
             selectedAccountId={selectedCardId}
           />
         )}
@@ -516,7 +561,7 @@ export const App: React.FC = () => {
           <SubscriptionRadar
             subscriptions={subscriptions}
             currency={currency}
-            fxRate={DEFAULT_FX_RATE}
+            fxRate={fxRate}
             onToggleStatus={handleToggleSub}
           />
         )}
@@ -524,13 +569,13 @@ export const App: React.FC = () => {
         {activeTab === 'splitwise' && (
           <SplitwisePanel
             currency={currency}
-            fxRate={DEFAULT_FX_RATE}
+            fxRate={fxRate}
             onSyncSuccess={handleSplitwiseSync}
           />
         )}
 
         {activeTab === 'forecaster' && (
-          <ForecasterChart forecast={forecast} currency={currency} fxRate={DEFAULT_FX_RATE} />
+          <ForecasterChart forecast={forecast} currency={currency} fxRate={fxRate} />
         )}
 
         {activeTab === 'import' && (
@@ -735,6 +780,13 @@ export const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Global SimpleFIN Bridge Connection Hub */}
+      <SimpleFinConnectionModal
+        isOpen={showSimpleFinModal}
+        onClose={() => setShowSimpleFinModal(false)}
+        onSyncComplete={refreshLedger}
+      />
     </div>
   );
 };

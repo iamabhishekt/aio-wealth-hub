@@ -78,6 +78,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/email-accounts/:id", delete(delete_email_account))
         .route("/api/email-accounts/test", post(test_email_account))
         .route("/api/openaccountant/report", get(openaccountant_report_handler))
+        .route("/api/simplefin/status", get(simplefin_status_handler))
+        .route("/api/simplefin/sync", post(simplefin_sync_handler))
+        .route("/api/simplefin/claim", post(simplefin_claim_handler))
+        .route("/api/fx/live", get(fx_live_handler))
         .layer(cors)
         .with_state(state);
 
@@ -443,5 +447,256 @@ async fn openaccountant_report_handler() -> Result<Json<serde_json::Value>, Stat
         }
     }
 }
+
+#[derive(Deserialize)]
+struct SimpleFinClaimRequest {
+    token: String,
+}
+
+async fn simplefin_status_handler() -> Result<Json<serde_json::Value>, StatusCode> {
+    let output = tokio::process::Command::new("python3")
+        .arg("scripts/sync_simplefin.py")
+        .arg("--status")
+        .output()
+        .await;
+
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+                Ok(Json(val))
+            } else {
+                eprintln!("[simplefin] JSON parse error: {}", stdout);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+        Err(e) => {
+            eprintln!("[simplefin] Execution error: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn simplefin_sync_handler() -> Result<Json<serde_json::Value>, StatusCode> {
+    let output = tokio::process::Command::new("python3")
+        .arg("scripts/sync_simplefin.py")
+        .output()
+        .await;
+
+    match output {
+        Ok(out) => {
+            let success = out.status.success();
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            Ok(Json(serde_json::json!({
+                "success": success,
+                "message": stdout.trim()
+            })))
+        }
+        Err(e) => Ok(Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string()
+        })))
+    }
+}
+
+async fn simplefin_claim_handler(
+    Json(payload): Json<SimpleFinClaimRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let output = tokio::process::Command::new("python3")
+        .arg("scripts/sync_simplefin.py")
+        .arg("--claim")
+        .arg(&payload.token)
+        .output()
+        .await;
+
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+                Ok(Json(val))
+            } else {
+                Ok(Json(serde_json::json!({
+                    "success": out.status.success(),
+                    "output": stdout.trim()
+                })))
+            }
+        }
+        Err(e) => Ok(Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string()
+        })))
+    }
+}
+
+#[derive(Deserialize)]
+struct FxQuery {
+    amount: Option<f64>,
+}
+
+#[derive(Serialize)]
+struct ProviderQuote {
+    id: String,
+    name: String,
+    category: String,
+    exchange_rate: f64,
+    spread_pct: f64,
+    fee_usd: f64,
+    speed: String,
+    badge: String,
+    is_recommended: bool,
+    landed_inr: f64,
+    difference_vs_best_inr: f64,
+}
+
+#[derive(Serialize)]
+struct LiveFxResponse {
+    source: String,
+    target: String,
+    market_rate: f64,
+    query_amount_usd: f64,
+    timestamp: String,
+    providers: Vec<ProviderQuote>,
+    crobo_rate: f64,
+    remitly_express_rate: f64,
+    remitly_economy_rate: f64,
+    wise_rate: f64,
+    bank_wire_rate: f64,
+}
+
+async fn fetch_live_usd_inr_rate() -> (f64, String) {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(4))
+        .build();
+
+    if let Ok(c) = client {
+        if let Ok(resp) = c.get("https://open.er-api.com/v6/latest/USD").send().await {
+            if let Ok(json) = resp.json::<serde_json::Value>().await {
+                if let Some(inr) = json.get("rates").and_then(|r| r.get("INR")).and_then(|v| v.as_f64()) {
+                    let ts = json.get("time_last_update_utc")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("2026-10-15")
+                        .to_string();
+                    return (inr, ts);
+                }
+            }
+        }
+    }
+    (95.25, chrono::Utc::now().to_rfc3339())
+}
+
+async fn fx_live_handler(Query(params): Query<FxQuery>) -> impl IntoResponse {
+    let (market_rate, timestamp) = fetch_live_usd_inr_rate().await;
+    let amount = params.amount.unwrap_or(1000.0);
+
+    // 1. Crobo.money: 0.25% spread, $0 fee
+    let crobo_rate = (market_rate * 0.9975 * 100.0).round() / 100.0;
+    let crobo_fee = 0.0;
+    let crobo_landed = (amount - crobo_fee) * crobo_rate;
+
+    // 2. Remitly Express: 1.15% spread, $0 fee if >= 1000 else $1.99
+    let remitly_express_rate = (market_rate * 0.9885 * 100.0).round() / 100.0;
+    let remitly_express_fee = if amount >= 1000.0 { 0.0 } else { 1.99 };
+    let remitly_express_landed = (amount - remitly_express_fee).max(0.0) * remitly_express_rate;
+
+    // 3. Remitly Economy: 0.65% spread, $0 fee
+    let remitly_economy_rate = (market_rate * 0.9935 * 100.0).round() / 100.0;
+    let remitly_economy_fee = 0.0;
+    let remitly_economy_landed = (amount - remitly_economy_fee) * remitly_economy_rate;
+
+    // 4. Wise: mid-market rate, $1.15 fixed + 0.42% fee
+    let wise_rate = (market_rate * 100.0).round() / 100.0;
+    let wise_fee = (1.15 + (amount * 0.0042) * 100.0).round() / 100.0;
+    let wise_landed = (amount - wise_fee).max(0.0) * wise_rate;
+
+    // 5. Traditional Bank Wire (Chase / Citi): 3.2% spread, $30 fee
+    let bank_rate = (market_rate * 0.968 * 100.0).round() / 100.0;
+    let bank_fee = 30.0;
+    let bank_landed = (amount - bank_fee).max(0.0) * bank_rate;
+
+    let best_landed = crobo_landed.max(remitly_economy_landed).max(wise_landed);
+
+    let providers = vec![
+        ProviderQuote {
+            id: "crobo".to_string(),
+            name: "Crobo.money".to_string(),
+            category: "Diaspora Direct Corridor".to_string(),
+            exchange_rate: crobo_rate,
+            spread_pct: 0.25,
+            fee_usd: crobo_fee,
+            speed: "Same-Day (ACH to UPI / NEFT)".to_string(),
+            badge: "Highest Landed INR".to_string(),
+            is_recommended: true,
+            landed_inr: crobo_landed,
+            difference_vs_best_inr: crobo_landed - best_landed,
+        },
+        ProviderQuote {
+            id: "remitly_express".to_string(),
+            name: "Remitly Express".to_string(),
+            category: "Instant Card / Bank Deposit".to_string(),
+            exchange_rate: remitly_express_rate,
+            spread_pct: 1.15,
+            fee_usd: remitly_express_fee,
+            speed: "Minutes (Instant IMPS to SBI / HDFC)".to_string(),
+            badge: "Fastest Delivery".to_string(),
+            is_recommended: false,
+            landed_inr: remitly_express_landed,
+            difference_vs_best_inr: remitly_express_landed - best_landed,
+        },
+        ProviderQuote {
+            id: "remitly_economy".to_string(),
+            name: "Remitly Economy".to_string(),
+            category: "Standard Bank ACH".to_string(),
+            exchange_rate: remitly_economy_rate,
+            spread_pct: 0.65,
+            fee_usd: remitly_economy_fee,
+            speed: "3 - 5 Business Days".to_string(),
+            badge: "Lower Spread".to_string(),
+            is_recommended: false,
+            landed_inr: remitly_economy_landed,
+            difference_vs_best_inr: remitly_economy_landed - best_landed,
+        },
+        ProviderQuote {
+            id: "wise".to_string(),
+            name: "Wise (TransferWise)".to_string(),
+            category: "Mid-Market Guaranteed".to_string(),
+            exchange_rate: wise_rate,
+            spread_pct: 0.0,
+            fee_usd: wise_fee,
+            speed: "4 - 8 Hours".to_string(),
+            badge: "Zero FX Markup".to_string(),
+            is_recommended: false,
+            landed_inr: wise_landed,
+            difference_vs_best_inr: wise_landed - best_landed,
+        },
+        ProviderQuote {
+            id: "bank_wire".to_string(),
+            name: "Traditional US Bank Wire (Chase / Citi)".to_string(),
+            category: "SWIFT Wire".to_string(),
+            exchange_rate: bank_rate,
+            spread_pct: 3.20,
+            fee_usd: bank_fee,
+            speed: "2 - 4 Business Days".to_string(),
+            badge: "Heavy Hidden Fees".to_string(),
+            is_recommended: false,
+            landed_inr: bank_landed,
+            difference_vs_best_inr: bank_landed - best_landed,
+        },
+    ];
+
+    Json(LiveFxResponse {
+        source: "USD".to_string(),
+        target: "INR".to_string(),
+        market_rate: (market_rate * 100.0).round() / 100.0,
+        query_amount_usd: amount,
+        timestamp,
+        providers,
+        crobo_rate,
+        remitly_express_rate,
+        remitly_economy_rate,
+        wise_rate,
+        bank_wire_rate: bank_rate,
+    })
+}
+
 
 

@@ -6,17 +6,28 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
+      borderRadius: {
+        '2xl': '18px',
+        '3xl': '26px',
+        '4xl': '34px',
+        '5xl': '44px',
+      },
       colors: {
         vault: {
-          950: '#06090f',
-          900: '#0d1117',
-          800: '#161b22',
-          700: '#21262d',
-          600: '#30363d',
-          gold: '#e3b341',
-          emerald: '#3fb950',
-          ruby: '#f85149',
-          cyan: '#58a6ff'
+          950: '#070a12',
+          900: '#0d1322',
+          850: '#11182c',
+          800: '#17213b',
+          700: '#233054',
+          600: '#344572',
+          gold: '#f59e0b',
+          emerald: '#10b981',
+          ruby: '#f43f5e',
+          cyan: '#38bdf8'
         }
       }
     },
