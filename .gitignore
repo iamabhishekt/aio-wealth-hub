@@ -12,3 +12,7 @@ node_modules/
 wallos/
 __pycache__/
 *.pyc
+
+# Universal Brain link
+brain
+
