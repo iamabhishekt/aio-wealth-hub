@@ -111,3 +111,26 @@ export interface OpenAccountantReport {
   emergency_fund: EmergencyFundMetrics;
 }
 
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  group_type: 'income' | 'expense' | 'transfer';
+  color: string;
+  sort_order: number;
+}
+
+export interface Category {
+  id: string;
+  group_id: string;
+  name: string;
+  icon: string;
+  is_system: boolean;
+  budget_amount?: number | null;
+}
+
+export interface CategoryGroupWithCategories {
+  group: CategoryGroup;
+  categories: Category[];
+}
+
+

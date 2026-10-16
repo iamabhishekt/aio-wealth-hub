@@ -1,4 +1,4 @@
-use crate::models::{Account, AccountType, Currency, EmailAccountConfig, Subscription, Transaction};
+use crate::models::{Account, AccountType, Category, CategoryGroup, CategoryGroupWithCategories, Currency, EmailAccountConfig, Subscription, Transaction};
 use anyhow::Result;
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -77,8 +77,94 @@ impl LedgerDb {
                 enabled INTEGER NOT NULL,
                 last_synced_at TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS category_groups (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                group_type TEXT NOT NULL,
+                color TEXT NOT NULL,
+                sort_order INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS categories (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                icon TEXT NOT NULL,
+                is_system INTEGER NOT NULL,
+                budget_amount REAL,
+                FOREIGN KEY(group_id) REFERENCES category_groups(id)
+            );
             "#,
         )?;
+
+        // Seed default Monarch category hierarchy if empty
+        let count: i64 = conn.query_row("SELECT count(*) FROM category_groups", [], |row| row.get(0))?;
+        if count == 0 {
+            Self::seed_default_categories(&conn)?;
+        }
+
+        Ok(())
+    }
+
+    fn seed_default_categories(conn: &Connection) -> Result<()> {
+        let groups = vec![
+            ("grp_income", "Income", "income", "#10b981", 1),
+            ("grp_living", "Fixed Living Expenses", "expense", "#3b82f6", 2),
+            ("grp_lifestyle", "Flexible Lifestyle", "expense", "#8b5cf6", 3),
+            ("grp_financial", "Financial Goals & Debt", "expense", "#f59e0b", 4),
+            ("grp_transfers", "Internal Transfers", "transfer", "#64748b", 5),
+        ];
+
+        for (id, name, gtype, color, order) in groups {
+            conn.execute(
+                "INSERT INTO category_groups (id, name, group_type, color, sort_order) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![id, name, gtype, color, order],
+            )?;
+        }
+
+        let categories: Vec<(&str, &str, &str, &str, i32, Option<f64>)> = vec![
+            // Income
+            ("cat_salary", "grp_income", "Paycheck & Bonus", "Wallet", 1, None),
+            ("cat_dividends", "grp_income", "Investment Dividends", "TrendingUp", 1, None),
+            ("cat_refunds", "grp_income", "Reimbursements & Refunds", "RotateCcw", 1, None),
+            ("cat_other_income", "grp_income", "Other Income", "Coins", 1, None),
+
+            // Fixed Living
+            ("cat_housing", "grp_living", "Rent / Mortgage", "Home", 1, Some(2200.0)),
+            ("cat_utilities", "grp_living", "Home Utilities & Power", "Zap", 1, Some(150.0)),
+            ("cat_telecom", "grp_living", "Internet & Mobile", "Wifi", 1, Some(120.0)),
+            ("cat_insurance", "grp_living", "Insurance Policies", "Shield", 1, Some(148.0)),
+            ("cat_groceries", "grp_living", "Groceries & Household", "ShoppingCart", 1, Some(450.0)),
+
+            // Flexible Lifestyle
+            ("cat_dining", "grp_lifestyle", "Restaurants & Dining Out", "Utensils", 1, Some(350.0)),
+            ("cat_coffee", "grp_lifestyle", "Coffee Shops & Cafes", "Coffee", 1, Some(60.0)),
+            ("cat_shopping", "grp_lifestyle", "Shopping & Electronics", "Package", 1, Some(250.0)),
+            ("cat_entertainment", "grp_lifestyle", "Subscriptions & Media", "Tv", 1, Some(70.0)),
+            ("cat_travel", "grp_lifestyle", "Travel & Flights", "Plane", 1, Some(150.0)),
+            ("cat_transit", "grp_lifestyle", "Gas & Transit", "Fuel", 1, Some(100.0)),
+
+            // Financial Goals & Debt
+            ("cat_loan_servicing", "grp_financial", "HDFC Home Loan Servicing", "Building", 1, Some(1640.0)),
+            ("cat_auto_loan", "grp_financial", "Toyota Auto Loan", "Car", 1, Some(520.0)),
+            ("cat_retirement", "grp_financial", "401(k) / IRA Contributions", "PiggyBank", 1, Some(500.0)),
+            ("cat_investing", "grp_financial", "Brokerage Stock Investments", "TrendingUp", 1, Some(500.0)),
+            ("cat_emergency_fund", "grp_financial", "Emergency Buffer Savings", "ShieldCheck", 1, Some(200.0)),
+
+            // Internal Transfers
+            ("cat_cc_payoff", "grp_transfers", "Credit Card Payment", "CreditCard", 1, None),
+            ("cat_remittance_transfer", "grp_transfers", "Cross-Border Remittance (Crobo/Remitly)", "Globe", 1, None),
+            ("cat_internal_transfer", "grp_transfers", "Internal Account Transfer", "ArrowRightLeft", 1, None),
+        ];
+
+        for (id, gid, name, icon, is_sys, budget) in categories {
+            conn.execute(
+                "INSERT INTO categories (id, group_id, name, icon, is_system, budget_amount) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![id, gid, name, icon, is_sys, budget],
+            )?;
+        }
+
         Ok(())
     }
 
@@ -347,5 +433,90 @@ impl LedgerDb {
             list.push(r?);
         }
         Ok(list)
+    }
+
+    pub fn get_category_hierarchy(&self) -> Result<Vec<CategoryGroupWithCategories>> {
+        let conn = self.conn.lock().unwrap();
+        let mut group_stmt = conn.prepare("SELECT id, name, group_type, color, sort_order FROM category_groups ORDER BY sort_order ASC")?;
+        let group_rows = group_stmt.query_map([], |row| {
+            Ok(CategoryGroup {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                group_type: row.get(2)?,
+                color: row.get(3)?,
+                sort_order: row.get(4)?,
+            })
+        })?;
+
+        let mut groups = Vec::new();
+        for g in group_rows {
+            groups.push(g?);
+        }
+
+        let mut cat_stmt = conn.prepare("SELECT id, group_id, name, icon, is_system, budget_amount FROM categories ORDER BY name ASC")?;
+        let cat_rows = cat_stmt.query_map([], |row| {
+            let is_sys: i32 = row.get(4)?;
+            Ok(Category {
+                id: row.get(0)?,
+                group_id: row.get(1)?,
+                name: row.get(2)?,
+                icon: row.get(3)?,
+                is_system: is_sys == 1,
+                budget_amount: row.get(5)?,
+            })
+        })?;
+
+        let mut all_cats = Vec::new();
+        for c in cat_rows {
+            all_cats.push(c?);
+        }
+
+        let mut hierarchy = Vec::new();
+        for group in groups {
+            let cats_for_group: Vec<Category> = all_cats
+                .iter()
+                .filter(|c| c.group_id == group.id)
+                .cloned()
+                .collect();
+            hierarchy.push(CategoryGroupWithCategories {
+                group,
+                categories: cats_for_group,
+            });
+        }
+
+        Ok(hierarchy)
+    }
+
+    pub fn upsert_category(&self, cat: &Category) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"
+            INSERT INTO categories (id, group_id, name, icon, is_system, budget_amount)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                group_id = excluded.group_id,
+                icon = excluded.icon,
+                budget_amount = excluded.budget_amount;
+            "#,
+            params![
+                cat.id,
+                cat.group_id,
+                cat.name,
+                cat.icon,
+                if cat.is_system { 1 } else { 0 },
+                cat.budget_amount
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_transaction_category(&self, tx_id: &str, category: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE transactions SET category = ?1 WHERE id = ?2",
+            params![category, tx_id],
+        )?;
+        Ok(())
     }
 }

@@ -104,3 +104,29 @@ pub struct EmailAccountConfig {
     pub enabled: bool,
     pub last_synced_at: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryGroup {
+    pub id: String,
+    pub name: String,
+    pub group_type: String, // "income", "expense", "transfer"
+    pub color: String,
+    pub sort_order: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Category {
+    pub id: String,
+    pub group_id: String,
+    pub name: String,
+    pub icon: String,
+    pub is_system: bool,
+    pub budget_amount: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryGroupWithCategories {
+    pub group: CategoryGroup,
+    pub categories: Vec<Category>,
+}
+

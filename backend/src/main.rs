@@ -3,7 +3,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -82,6 +82,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/simplefin/sync", post(simplefin_sync_handler))
         .route("/api/simplefin/claim", post(simplefin_claim_handler))
         .route("/api/fx/live", get(fx_live_handler))
+        .route("/api/categories", get(list_categories).post(create_category))
+        .route("/api/transactions/:id/category", put(update_transaction_category_handler))
         .layer(cors)
         .with_state(state);
 
@@ -696,6 +698,44 @@ async fn fx_live_handler(Query(params): Query<FxQuery>) -> impl IntoResponse {
         wise_rate,
         bank_wire_rate: bank_rate,
     })
+}
+
+async fn list_categories(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<CategoryGroupWithCategories>>, StatusCode> {
+    state
+        .db
+        .get_category_hierarchy()
+        .map(Json)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+async fn create_category(
+    State(state): State<AppState>,
+    Json(cat): Json<Category>,
+) -> Result<StatusCode, StatusCode> {
+    state
+        .db
+        .upsert_category(&cat)
+        .map(|_| StatusCode::OK)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+#[derive(Deserialize)]
+struct UpdateTxCategoryRequest {
+    category: String,
+}
+
+async fn update_transaction_category_handler(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpdateTxCategoryRequest>,
+) -> Result<StatusCode, StatusCode> {
+    state
+        .db
+        .update_transaction_category(&id, &payload.category)
+        .map(|_| StatusCode::OK)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 

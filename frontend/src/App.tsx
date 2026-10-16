@@ -16,6 +16,7 @@ import { AICopilotCard } from './components/AICopilotCard';
 import { CashflowAnalytics } from './components/CashflowAnalytics';
 import { LocalRAGCopilot } from './components/LocalRAGCopilot';
 import { SimpleFinConnectionModal } from './components/SimpleFinConnectionModal';
+import { CategoryHierarchyManager } from './components/CategoryHierarchyManager';
 import { nativeBridge } from './nativeBridge';
 import {
   LayoutDashboard,
@@ -31,6 +32,7 @@ import {
   MoreHorizontal,
   X,
   ChevronRight,
+  FolderTree,
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -43,6 +45,7 @@ export const App: React.FC = () => {
     | 'independence'
     | 'accounts'
     | 'transactions'
+    | 'categories'
     | 'subscriptions'
     | 'splitwise'
     | 'forecaster'
@@ -54,6 +57,17 @@ export const App: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refreshTransactions = () => {
+    fetch('http://localhost:8088/api/transactions')
+      .then((r) => r.json())
+      .then((data: Transaction[]) => {
+        if (data && Array.isArray(data)) {
+          setTransactions(data);
+        }
+      })
+      .catch((err) => console.log('Backend transactions fetch note:', err));
+  };
 
   // Initial biometrics unlock attempt & data hydration
   useEffect(() => {
@@ -75,14 +89,7 @@ export const App: React.FC = () => {
       .catch((err) => console.log('Backend accounts fetch note:', err));
 
     // Hydrate verified transactions from backend
-    fetch('http://localhost:8088/api/transactions')
-      .then((r) => r.json())
-      .then((data: Transaction[]) => {
-        if (data && Array.isArray(data)) {
-          setTransactions(data);
-        }
-      })
-      .catch((err) => console.log('Backend transactions fetch note:', err));
+    refreshTransactions();
 
     // Hydrate subscriptions from Wallos backend
     fetch('http://localhost:8088/api/subscriptions')
@@ -321,6 +328,17 @@ export const App: React.FC = () => {
               Transactions ({transactions.length})
             </button>
             <button
+              onClick={() => setActiveTab('categories')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 flex items-center gap-1.5 ${
+                activeTab === 'categories'
+                  ? 'bg-vault-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <FolderTree className="w-3.5 h-3.5 text-vault-cyan" />
+              <span>Categories & Budget</span>
+            </button>
+            <button
               onClick={() => setActiveTab('subscriptions')}
               className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
                 activeTab === 'subscriptions'
@@ -522,6 +540,7 @@ export const App: React.FC = () => {
               currency={currency}
               fxRate={fxRate}
               selectedAccountId={selectedCardId}
+              onTransactionUpdated={refreshTransactions}
             />
 
             {/* 11. Subscription Creep Radar (Wallos) */}
@@ -554,7 +573,12 @@ export const App: React.FC = () => {
             currency={currency}
             fxRate={fxRate}
             selectedAccountId={selectedCardId}
+            onTransactionUpdated={refreshTransactions}
           />
+        )}
+
+        {activeTab === 'categories' && (
+          <CategoryHierarchyManager currency={currency} fxRate={fxRate} />
         )}
 
         {activeTab === 'subscriptions' && (
@@ -647,7 +671,7 @@ export const App: React.FC = () => {
             setShowMobileMore(true);
           }}
           className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-colors ${
-            ['subscriptions', 'splitwise', 'forecaster', 'import'].includes(activeTab) || showMobileMore
+            ['categories', 'subscriptions', 'splitwise', 'forecaster', 'import'].includes(activeTab) || showMobileMore
               ? 'text-vault-cyan'
               : 'text-slate-400'
           }`}
@@ -675,6 +699,28 @@ export const App: React.FC = () => {
             </div>
 
             <div className="space-y-2">
+              <button
+                onClick={() => {
+                  nativeBridge.triggerHaptic('light');
+                  setActiveTab('categories');
+                  setShowMobileMore(false);
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-vault-900/70 border border-vault-800 hover:border-vault-700 text-left transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                    <FolderTree className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Categories & Rollover Budget</h4>
+                    <p className="text-[11px] text-slate-400">
+                      Monarch-style 3-tier hierarchy & monthly caps
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
               <button
                 onClick={() => {
                   nativeBridge.triggerHaptic('light');

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Account, Currency, Transaction } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Account, Currency, Transaction, CategoryGroupWithCategories } from '../types';
 import {
   Search,
   ArrowDownLeft,
@@ -12,6 +12,9 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Tag,
+  Check,
+  FolderTree,
 } from 'lucide-react';
 import { nativeBridge } from '../nativeBridge';
 
@@ -21,6 +24,7 @@ interface TransactionsTableProps {
   currency: Currency;
   fxRate: number;
   selectedAccountId?: string | null;
+  onTransactionUpdated?: () => void;
 }
 
 type SourceFilter = 'ALL' | 'API_ONLY' | 'BANK_API' | 'PAYROLL_API' | 'PDF_STATEMENT';
@@ -34,6 +38,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
   currency,
   fxRate,
   selectedAccountId,
+  onTransactionUpdated,
 }) => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,6 +56,50 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
       setCurrentPage(1);
     }
   }, [selectedAccountId]);
+
+  // Monarch 3-Tier Category State & Inline Reclassification
+  const [hierarchy, setHierarchy] = useState<CategoryGroupWithCategories[]>([]);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [categorySearch, setCategorySearch] = useState<string>('');
+  const [isSavingCategory, setIsSavingCategory] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetch('http://localhost:8088/api/categories')
+      .then((res) => res.json())
+      .then((data: CategoryGroupWithCategories[]) => {
+        if (Array.isArray(data)) {
+          setHierarchy(data);
+        }
+      })
+      .catch((err) => console.log('Categories fetch note:', err));
+  }, []);
+
+  const handleAssignCategory = async (txId: string, categoryName: string) => {
+    try {
+      setIsSavingCategory(true);
+      nativeBridge.triggerHaptic('medium');
+      const res = await fetch(`http://localhost:8088/api/transactions/${txId}/category`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: categoryName }),
+      });
+      if (res.ok) {
+        nativeBridge.triggerHaptic('success');
+        nativeBridge.scheduleLocalNotification(
+          'Category Updated',
+          `Transaction updated to "${categoryName}".`
+        );
+        setEditingTx(null);
+        if (onTransactionUpdated) {
+          onTransactionUpdated();
+        }
+      }
+    } catch (e) {
+      console.error('Failed to update category:', e);
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -142,9 +191,16 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
         if (src !== 'PDF_STATEMENT') return false;
       }
 
-      // 2. Category filter
-      if (categoryFilter !== 'ALL' && tx.category !== categoryFilter) {
-        return false;
+      // 2. Category filter (supports specific category or entire Monarch group e.g. GROUP:grp_living)
+      if (categoryFilter !== 'ALL') {
+        if (categoryFilter.startsWith('GROUP:')) {
+          const groupId = categoryFilter.replace('GROUP:', '');
+          const group = hierarchy.find((g) => g.group.id === groupId);
+          const catNames = group ? group.categories.map((c) => c.name) : [];
+          if (!catNames.includes(tx.category)) return false;
+        } else if (tx.category !== categoryFilter) {
+          return false;
+        }
       }
 
       // 3. Account filter
@@ -222,6 +278,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
     sortBy,
     fxRate,
     accountMap,
+    hierarchy,
   ]);
 
   // Aggregate stats over filtered records
@@ -560,7 +617,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
             </select>
           </div>
 
-          {/* Category Dropdown (Mobile-friendly selector) */}
+          {/* Category Dropdown (Monarch 3-Tier Hierarchy Selector) */}
           <div className="md:col-span-2">
             <select
               value={categoryFilter}
@@ -571,11 +628,27 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
               className="w-full bg-vault-900 border border-vault-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
             >
               <option value="ALL">All Categories ({availableCategories.length})</option>
-              {availableCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
+              {hierarchy.map((grp) => (
+                <optgroup key={grp.group.id} label={`── ${grp.group.name.toUpperCase()} ──`}>
+                  <option value={`GROUP:${grp.group.id}`}>★ All {grp.group.name}</option>
+                  {grp.categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
+              {availableCategories.filter((c) => !hierarchy.some((g) => g.categories.some((cat) => cat.name === c))).length > 0 && (
+                <optgroup label="── OTHER / UNMAPPED ──">
+                  {availableCategories
+                    .filter((c) => !hierarchy.some((g) => g.categories.some((cat) => cat.name === c)))
+                    .map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
             </select>
           </div>
 
@@ -653,22 +726,36 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
           >
             All Categories ({availableCategories.length})
           </button>
-          {availableCategories.map((cat) => (
+          {hierarchy.map((grp) => (
             <button
-              key={cat}
+              key={grp.group.id}
               onClick={() => {
-                setCategoryFilter(cat);
+                setCategoryFilter(`GROUP:${grp.group.id}`);
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all text-[11px] font-medium shrink-0 ${
-                categoryFilter === cat
-                  ? 'bg-vault-800 text-white font-bold border border-vault-700'
+              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all text-[11px] font-medium shrink-0 flex items-center gap-1.5 ${
+                categoryFilter === `GROUP:${grp.group.id}`
+                  ? 'bg-vault-800 text-white font-bold border border-vault-700 shadow-sm'
                   : 'bg-vault-900/60 text-slate-400 hover:text-slate-200 border border-vault-800/60'
               }`}
             >
-              {cat}
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: grp.group.color }} />
+              <span>{grp.group.name}</span>
             </button>
           ))}
+          {/* Also show current selected category if user selected a single specific category */}
+          {!categoryFilter.startsWith('GROUP:') && categoryFilter !== 'ALL' && (
+            <button
+              onClick={() => {
+                setCategoryFilter('ALL');
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 rounded-xl whitespace-nowrap transition-all text-[11px] font-bold shrink-0 flex items-center gap-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+            >
+              <span>Selected: {categoryFilter}</span>
+              <X className="w-3 h-3 ml-1" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -727,13 +814,21 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
                       <span className="truncate">{accInfo.name}</span>
                     </div>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span
-                        className={`inline-block px-1.5 py-0.2 rounded border text-[9px] font-medium ${getCategoryBadge(
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          nativeBridge.triggerHaptic('light');
+                          setEditingTx(tx);
+                          setCategorySearch('');
+                        }}
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-medium transition-all active:scale-95 cursor-pointer ${getCategoryBadge(
                           tx.category
                         )}`}
+                        title="Tap to change category"
                       >
-                        {tx.category}
-                      </span>
+                        <span>{tx.category}</span>
+                        <Tag className="w-2 h-2 opacity-60" />
+                      </button>
                       {renderSourceBadge(src)}
                     </div>
                   </div>
@@ -831,13 +926,21 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
 
                     {/* Category Badge */}
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span
-                        className={`inline-block px-2.5 py-0.5 rounded-lg border text-[10px] font-semibold ${getCategoryBadge(
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          nativeBridge.triggerHaptic('light');
+                          setEditingTx(tx);
+                          setCategorySearch('');
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-semibold transition-all hover:scale-105 hover:border-cyan-400 cursor-pointer ${getCategoryBadge(
                           tx.category
                         )}`}
+                        title="Click to change category"
                       >
-                        {tx.category}
-                      </span>
+                        <span>{tx.category}</span>
+                        <Tag className="w-2.5 h-2.5 opacity-60 ml-0.5" />
+                      </button>
                     </td>
 
                     {/* Amount Column with Strict Anti-Slop Formatting (NO -$-43.64 BUG) */}
@@ -916,6 +1019,106 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
           </div>
         </div>
       </div>
+      {/* MONARCH CATEGORY RECLASSIFICATION MODAL */}
+      {editingTx && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-vault-950 border border-vault-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-vault-800 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <FolderTree className="w-4 h-4 text-cyan-400" />
+                  <h3 className="text-sm sm:text-base font-bold text-white">Reclassify Category</h3>
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-xs">
+                  <span className="font-semibold text-slate-200 truncate max-w-[200px]">
+                    {editingTx.merchant}
+                  </span>
+                  <span className="text-slate-500">·</span>
+                  <span className="font-mono font-bold text-slate-300">
+                    {formatMoneyUsd(editingTx.amount)}
+                  </span>
+                  <span className="text-slate-500">·</span>
+                  <span className="text-slate-400">{editingTx.date}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingTx(null)}
+                className="p-1.5 rounded-xl bg-vault-900 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Instant Search Bar */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search categories (e.g. Groceries, Coffee, Rent)..."
+                value={categorySearch}
+                onChange={(e) => setCategorySearch(e.target.value)}
+                className="w-full bg-vault-900 border border-vault-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                autoFocus
+              />
+            </div>
+
+            {/* Hierarchical Categories Scroll List */}
+            <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 min-h-[220px]">
+              {hierarchy.map((grp) => {
+                const filteredCats = grp.categories.filter((c) =>
+                  categorySearch.trim() === '' ||
+                  c.name.toLowerCase().includes(categorySearch.toLowerCase()) ||
+                  grp.group.name.toLowerCase().includes(categorySearch.toLowerCase())
+                );
+
+                if (filteredCats.length === 0) return null;
+
+                return (
+                  <div key={grp.group.id} className="space-y-1.5">
+                    <div className="flex items-center gap-2 px-1">
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: grp.group.color }}
+                      />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        {grp.group.name}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {filteredCats.map((cat) => {
+                        const isCurrent = editingTx.category === cat.name;
+                        return (
+                          <button
+                            key={cat.id}
+                            disabled={isSavingCategory}
+                            onClick={() => handleAssignCategory(editingTx.id, cat.name)}
+                            className={`flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition-all border ${
+                              isCurrent
+                                ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 font-bold'
+                                : 'bg-vault-900/70 border-vault-800/80 hover:border-vault-700 text-slate-300 hover:text-white'
+                            }`}
+                          >
+                            <span className="truncate">{cat.name}</span>
+                            {isCurrent && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer Notice */}
+            <div className="pt-2 border-t border-vault-800/80 flex items-center justify-between text-[11px] text-slate-400">
+              <span>Current: <strong className="text-slate-200">{editingTx.category}</strong></span>
+              <span className="text-[10px] text-slate-500">Syncs immediately to local ledger</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
